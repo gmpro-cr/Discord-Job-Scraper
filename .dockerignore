@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+jobs.db
+.cache/
+digests/
+job_agent.log
+*.log
+user_preferences.json
+.git/
+.gitignore

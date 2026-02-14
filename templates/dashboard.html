@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Job Search Agent{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+  <p class="text-gray-500 mt-1">Overview of your job search progress</p>
+</div>
+
+<!-- Stat Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+  <div class="bg-white rounded-lg shadow p-5 border-l-4 border-indigo-500">
+    <p class="text-sm font-medium text-gray-500">Total Jobs</p>
+    <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.total_jobs }}</p>
+  </div>
+  <div class="bg-white rounded-lg shadow p-5 border-l-4 border-green-500">
+    <p class="text-sm font-medium text-gray-500">Found Today</p>
+    <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.jobs_today }}</p>
+  </div>
+  <div class="bg-white rounded-lg shadow p-5 border-l-4 border-blue-500">
+    <p class="text-sm font-medium text-gray-500">This Week</p>
+    <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.jobs_this_week }}</p>
+  </div>
+  <div class="bg-white rounded-lg shadow p-5 border-l-4 border-amber-500">
+    <p class="text-sm font-medium text-gray-500">Applied / Saved</p>
+    <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.applied_count }} / {{ stats.saved_count }}</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <!-- Portal Quality -->
+  <div class="lg:col-span-2 bg-white rounded-lg shadow">
+    <div class="px-5 py-4 border-b border-gray-200">
+      <h2 class="text-lg font-semibold text-gray-900">Portal Quality</h2>
+    </div>
+    <div class="p-5">
+      {% if portal_quality %}
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-gray-500 border-b">
+            <th class="pb-2 font-medium">Portal</th>
+            <th class="pb-2 font-medium text-right">Total</th>
+            <th class="pb-2 font-medium text-right">Avg Score</th>
+            <th class="pb-2 font-medium text-right">Best</th>
+            <th class="pb-2 font-medium text-right">Quality*</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in portal_quality %}
+          <tr class="border-b border-gray-100">
+            <td class="py-2 font-medium text-gray-900">{{ p.portal }}</td>
+            <td class="py-2 text-right text-gray-700">{{ p.total_jobs }}</td>
+            <td class="py-2 text-right">
+              <span class="inline-block px-2 py-0.5 rounded text-xs font-medium
+                {% if p.avg_score >= 70 %}bg-green-100 text-green-800
+                {% elif p.avg_score >= 50 %}bg-yellow-100 text-yellow-800
+                {% else %}bg-gray-100 text-gray-700{% endif %}">
+                {{ p.avg_score }}
+              </span>
+            </td>
+            <td class="py-2 text-right text-gray-700">{{ p.max_score }}</td>
+            <td class="py-2 text-right text-gray-700">{{ p.quality_jobs }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="text-xs text-gray-400 mt-2">* Quality = score >= 65</p>
+      {% else %}
+      <p class="text-gray-500 text-sm">No data yet. Run the scraper first.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Top Companies & Roles -->
+  <div class="space-y-6">
+    <div class="bg-white rounded-lg shadow">
+      <div class="px-5 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900">Top Companies</h2>
+      </div>
+      <div class="p-5">
+        {% if stats.top_companies %}
+        <ul class="space-y-2">
+          {% for company, count in stats.top_companies %}
+          <li class="flex justify-between items-center">
+            <span class="text-sm text-gray-700 truncate">{{ company }}</span>
+            <span class="text-xs font-medium bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{{ count }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-500 text-sm">No data yet.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow">
+      <div class="px-5 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900">Top Roles</h2>
+      </div>
+      <div class="p-5">
+        {% if stats.top_roles %}
+        <ul class="space-y-2">
+          {% for role, count in stats.top_roles %}
+          <li class="flex justify-between items-center">
+            <span class="text-sm text-gray-700 truncate">{{ role }}</span>
+            <span class="text-xs font-medium bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{{ count }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-500 text-sm">No data yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="mt-8 flex flex-wrap gap-3">
+  <a href="{{ url_for('scraper') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700">
+    Run Scraper
+  </a>
+  <a href="{{ url_for('jobs') }}" class="inline-flex items-center px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50">
+    Browse Jobs
+  </a>
+  <a href="{{ url_for('digests') }}" class="inline-flex items-center px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50">
+    View Digests
+  </a>
+</div>
+{% endblock %}

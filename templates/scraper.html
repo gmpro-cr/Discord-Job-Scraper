@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Run Scraper - Job Search Agent{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">Run Scraper</h1>
+  <p class="text-gray-500 mt-1">Scrape all enabled portals, analyze jobs, and generate a digest</p>
+</div>
+
+<div class="max-w-2xl">
+  <!-- Start Button -->
+  <div id="start-section" class="bg-white rounded-lg shadow p-6 text-center">
+    <p class="text-gray-600 mb-4">This will scrape all enabled job portals, score jobs with AI, store them in the database, and generate a new digest. This usually takes 5-10 minutes.</p>
+    <button id="start-btn" onclick="startScraper()"
+            class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 text-lg">
+      Run Scraper Now
+    </button>
+  </div>
+
+  <!-- Progress Section (hidden initially) -->
+  <div id="progress-section" class="hidden">
+    <div class="bg-white rounded-lg shadow p-6">
+      <div class="flex items-center space-x-3 mb-4">
+        <svg id="spinner" class="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span id="phase-text" class="text-lg font-medium text-gray-900">Starting...</span>
+      </div>
+
+      <!-- Portal progress -->
+      <div id="portal-list" class="space-y-2 mb-4"></div>
+
+      <!-- Summary counters -->
+      <div id="summary" class="hidden mt-4 pt-4 border-t border-gray-200 grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <span class="text-gray-500">Total jobs scraped:</span>
+          <span id="stat-total" class="font-medium text-gray-900 ml-1">0</span>
+        </div>
+        <div>
+          <span class="text-gray-500">Qualified:</span>
+          <span id="stat-qualified" class="font-medium text-gray-900 ml-1">0</span>
+        </div>
+        <div>
+          <span class="text-gray-500">New (inserted):</span>
+          <span id="stat-inserted" class="font-medium text-gray-900 ml-1">0</span>
+        </div>
+        <div>
+          <span class="text-gray-500">Duplicates skipped:</span>
+          <span id="stat-skipped" class="font-medium text-gray-900 ml-1">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result section (after completion) -->
+    <div id="result-section" class="hidden mt-4 bg-green-50 rounded-lg shadow p-6 border border-green-200">
+      <h3 class="text-lg font-semibold text-green-800 mb-3">Scraping Complete!</h3>
+      <div class="flex flex-wrap gap-3">
+        <a href="{{ url_for('jobs') }}" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700">
+          View Jobs
+        </a>
+        <a id="digest-link" href="#" class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50">
+          View Latest Digest
+        </a>
+        <button onclick="location.reload()" class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50">
+          Run Again
+        </button>
+      </div>
+    </div>
+
+    <!-- Error section -->
+    <div id="error-section" class="hidden mt-4 bg-red-50 rounded-lg shadow p-6 border border-red-200">
+      <h3 class="text-lg font-semibold text-red-800 mb-2">Error</h3>
+      <p id="error-text" class="text-sm text-red-700"></p>
+      <button onclick="location.reload()" class="mt-3 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50">
+        Try Again
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let pollInterval = null;
+
+const phaseLabels = {
+  starting: 'Starting pipeline...',
+  scraping: 'Scraping job portals...',
+  analyzing: 'Analyzing and scoring jobs...',
+  storing: 'Storing jobs in database...',
+  generating_digest: 'Generating digest...',
+  done: 'Complete!',
+  error: 'Error occurred',
+  idle: 'Idle',
+};
+
+function startScraper() {
+  const btn = document.getElementById('start-btn');
+  btn.disabled = true;
+  btn.textContent = 'Starting...';
+  btn.classList.add('opacity-50');
+
+  fetch('/api/scraper/start', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        document.getElementById('start-section').classList.add('hidden');
+        document.getElementById('progress-section').classList.remove('hidden');
+        pollInterval = setInterval(pollStatus, 2000);
+        pollStatus();
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Run Scraper Now';
+        btn.classList.remove('opacity-50');
+        alert(data.error || 'Failed to start scraper');
+      }
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.textContent = 'Run Scraper Now';
+      btn.classList.remove('opacity-50');
+      alert('Network error: ' + err.message);
+    });
+}
+
+function pollStatus() {
+  fetch('/api/scraper/status')
+    .then(r => r.json())
+    .then(s => {
+      // Phase
+      document.getElementById('phase-text').textContent = phaseLabels[s.phase] || s.phase;
+
+      // Portal progress
+      const portalList = document.getElementById('portal-list');
+      const portals = Object.entries(s.portal_progress || {});
+      if (portals.length > 0) {
+        portalList.innerHTML = portals.map(([name, info]) => {
+          const icon = info.status === 'success'
+            ? '<span class="text-green-600 font-bold">&#10003;</span>'
+            : '<span class="text-red-500 font-bold">&#10007;</span>';
+          return `<div class="flex items-center justify-between text-sm py-1">
+            <span class="flex items-center space-x-2">
+              ${icon}
+              <span class="capitalize text-gray-700">${name}</span>
+            </span>
+            <span class="text-gray-500">${info.count} jobs</span>
+          </div>`;
+        }).join('');
+      }
+
+      // Show summary once we have data
+      if (s.total_jobs > 0 || s.phase === 'done') {
+        document.getElementById('summary').classList.remove('hidden');
+        document.getElementById('stat-total').textContent = s.total_jobs;
+        document.getElementById('stat-qualified').textContent = s.qualified_jobs;
+        document.getElementById('stat-inserted').textContent = s.inserted;
+        document.getElementById('stat-skipped').textContent = s.skipped;
+      }
+
+      // Done
+      if (s.phase === 'done') {
+        clearInterval(pollInterval);
+        document.getElementById('spinner').classList.add('hidden');
+        document.getElementById('result-section').classList.remove('hidden');
+        if (s.digest_path) {
+          document.getElementById('digest-link').href = '/digests/' + s.digest_path;
+        }
+      }
+
+      // Error
+      if (s.phase === 'error') {
+        clearInterval(pollInterval);
+        document.getElementById('spinner').classList.add('hidden');
+        document.getElementById('error-section').classList.remove('hidden');
+        document.getElementById('error-text').textContent = s.error || 'Unknown error';
+      }
+    })
+    .catch(err => console.error('Poll error:', err));
+}
+
+// Check if already running on page load
+fetch('/api/scraper/status')
+  .then(r => r.json())
+  .then(s => {
+    if (s.running) {
+      document.getElementById('start-section').classList.add('hidden');
+      document.getElementById('progress-section').classList.remove('hidden');
+      pollInterval = setInterval(pollStatus, 2000);
+      pollStatus();
+    }
+  });
+</script>
+{% endblock %}

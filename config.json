@@ -1,0 +1,69 @@
+{
+  "portals": {
+    "linkedin": {
+      "enabled": true,
+      "base_url": "https://www.linkedin.com/jobs/search/",
+      "timeout": 30,
+      "use_selenium": true,
+      "max_pages": 3
+    },
+    "indeed": {
+      "enabled": true,
+      "base_url": "https://in.indeed.com/jobs",
+      "timeout": 30,
+      "use_selenium": true,
+      "max_pages": 3
+    },
+    "naukri": {
+      "enabled": true,
+      "base_url": "https://www.naukri.com",
+      "timeout": 30,
+      "use_selenium": true,
+      "max_pages": 3
+    },
+    "hiringcafe": {
+      "enabled": true,
+      "base_url": "https://hiring.cafe",
+      "timeout": 30,
+      "use_selenium": false,
+      "max_pages": 2
+    },
+    "angellist": {
+      "enabled": true,
+      "base_url": "https://wellfound.com/jobs",
+      "timeout": 30,
+      "use_selenium": true,
+      "max_pages": 2
+    },
+    "iimjobs": {
+      "enabled": true,
+      "base_url": "https://www.iimjobs.com",
+      "timeout": 30,
+      "use_selenium": true,
+      "max_pages": 2
+    }
+  },
+  "scraping": {
+    "thread_count": 4,
+    "request_delay_min": 2,
+    "request_delay_max": 5,
+    "max_retries": 3,
+    "portal_timeout": 30,
+    "cache_expiry_hours": 12
+  },
+  "scoring": {
+    "min_relevance_score": 65,
+    "ollama_model": "mistral",
+    "ollama_timeout": 60,
+    "use_ollama": true
+  },
+  "digest": {
+    "open_in_browser": true,
+    "keep_days": 90
+  },
+  "logging": {
+    "log_file": "job_agent.log",
+    "max_log_days": 30,
+    "log_level": "INFO"
+  }
+}
