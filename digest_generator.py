@@ -12,8 +12,15 @@ from html import escape
 logger = logging.getLogger(__name__)
 
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DIGEST_DIR = os.path.join(os.environ.get("DATA_DIR", _BASE_DIR), "digests")
-os.makedirs(DIGEST_DIR, exist_ok=True)
+_IS_VERCEL = bool(os.environ.get("VERCEL"))
+if _IS_VERCEL:
+    DIGEST_DIR = "/tmp/digests"
+else:
+    DIGEST_DIR = os.path.join(os.environ.get("DATA_DIR", _BASE_DIR), "digests")
+try:
+    os.makedirs(DIGEST_DIR, exist_ok=True)
+except OSError:
+    pass
 
 
 PORTAL_COLORS = {

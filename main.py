@@ -42,7 +42,11 @@ from scheduler import setup_scheduler
 # =============================================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.environ.get("DATA_DIR", BASE_DIR)
+_IS_VERCEL = bool(os.environ.get("VERCEL"))
+if _IS_VERCEL:
+    DATA_DIR = "/tmp"
+else:
+    DATA_DIR = os.environ.get("DATA_DIR", BASE_DIR)
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 PREFS_PATH = os.path.join(DATA_DIR, "user_preferences.json")
 LOG_PATH = os.path.join(DATA_DIR, "job_agent.log")

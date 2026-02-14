@@ -21,8 +21,15 @@ logger = logging.getLogger(__name__)
 
 # --- Cache ---
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CACHE_DIR = os.path.join(os.environ.get("DATA_DIR", _BASE_DIR), ".cache")
-os.makedirs(CACHE_DIR, exist_ok=True)
+_IS_VERCEL = bool(os.environ.get("VERCEL"))
+if _IS_VERCEL:
+    CACHE_DIR = "/tmp/.cache"
+else:
+    CACHE_DIR = os.path.join(os.environ.get("DATA_DIR", _BASE_DIR), ".cache")
+try:
+    os.makedirs(CACHE_DIR, exist_ok=True)
+except OSError:
+    pass
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",

@@ -11,7 +11,11 @@ from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(os.environ.get("DATA_DIR", _BASE_DIR), "jobs.db")
+_IS_VERCEL = bool(os.environ.get("VERCEL"))
+if _IS_VERCEL:
+    DB_PATH = "/tmp/jobs.db"
+else:
+    DB_PATH = os.path.join(os.environ.get("DATA_DIR", _BASE_DIR), "jobs.db")
 
 
 def get_connection():

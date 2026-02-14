@@ -7,3 +7,4 @@ digests/
 *.log
 user_preferences.json
 .env
+.vercel/

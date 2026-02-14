@@ -38,6 +38,8 @@ from discord_notifier import send_discord_alert, send_discord_batch_summary
 # App setup
 # ---------------------------------------------------------------------------
 
+_IS_VERCEL = bool(os.environ.get("VERCEL"))
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET", "job-search-agent-dev-key")
 
@@ -45,7 +47,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize the database on startup
-init_db()
+try:
+    init_db()
+except Exception as e:
+    logger.warning("Database init warning (may be expected on Vercel): %s", e)
 
 # ---------------------------------------------------------------------------
 # Background scraper state
@@ -394,7 +399,8 @@ def _run_live_search(query, location):
 
 
 # Guard against double-fire with Flask debug reloader
-if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
+# Skip scheduler entirely on Vercel (serverless – no persistent processes)
+if not _IS_VERCEL and (os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug):
     setup_background_scheduler()
 
 # ---------------------------------------------------------------------------
@@ -590,6 +596,8 @@ def scraper():
 
 @app.route("/api/scraper/start", methods=["POST"])
 def start_scraper():
+    if _IS_VERCEL:
+        return jsonify({"ok": False, "error": "Scraper is not available in cloud mode. Run the scraper locally with: python main.py"}), 503
     global scraper_status
     with scraper_lock:
         if scraper_status["running"]:
@@ -626,6 +634,8 @@ def scraper_status_api():
 
 @app.route("/api/search/start", methods=["POST"])
 def start_live_search():
+    if _IS_VERCEL:
+        return jsonify({"ok": False, "error": "Live search is not available in cloud mode. Run the scraper locally with: python main.py"}), 503
     global live_search_status
     data = request.get_json(silent=True) or {}
     query = data.get("query", "").strip()
