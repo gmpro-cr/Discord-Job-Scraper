@@ -19,7 +19,7 @@ COPY . .
 RUN mkdir -p /data/digests /data/.cache
 ENV DATA_DIR=/data
 
-EXPOSE 10000
+EXPOSE ${PORT:-10000}
 
 # Single worker required: APScheduler and scraper state are in-memory globals
-CMD ["gunicorn", "--bind", "0.0.0.0:10000", "--timeout", "300", "--workers", "1", "app:app"]
+CMD gunicorn --bind 0.0.0.0:${PORT:-10000} --timeout 300 --workers 1 app:app
