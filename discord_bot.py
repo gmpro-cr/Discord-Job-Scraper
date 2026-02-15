@@ -102,6 +102,22 @@ def _extract_number(text):
     return 5
 
 
+def _looks_like_nlp_query(text):
+    """Check if text contains NLP filter hints beyond just 'show jobs'."""
+    nlp_hints = [
+        r"\b(remote|hybrid|wfh|on[\s-]?site)\b",
+        r"\b(bangalore|bengaluru|mumbai|delhi|hyderabad|chennai|pune|kolkata|noida|gurgaon|gurugram)\b",
+        r"\b\d+\s*(?:lakhs?|lpa|l)\b",
+        r"\b\d+\s*[-to]+\s*\d+\s*(?:years?|yrs?)\b",
+        r"\b(startup|corporate|mnc)\b",
+        r"\b(senior|junior|entry|lead|staff)\b",
+        r"\b(product\s*manager|pm|sde|engineer|developer|designer|analyst)\b",
+        r"\b(above|below|under|more\s*than|less\s*than)\b.*\d",
+    ]
+    text_lower = text.lower()
+    return any(re.search(p, text_lower) for p in nlp_hints)
+
+
 # ---------------------------------------------------------------------------
 # Data handlers
 # ---------------------------------------------------------------------------
@@ -136,6 +152,73 @@ def _search_jobs(query, limit=5):
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
+
+
+def _nlp_search(query):
+    """Call the NLP search API endpoint and return (filters_dict, filter_labels, jobs, total)."""
+    try:
+        resp = http_requests.post(
+            f"http://localhost:{_FLASK_PORT}/api/nlp-search",
+            json={"query": query},
+            timeout=30,
+        )
+        data = resp.json()
+        if data.get("ok"):
+            return data.get("filters", {}), data.get("filter_labels", []), data.get("jobs", []), data.get("total", 0)
+        return {}, [], [], 0
+    except Exception as e:
+        logger.warning("NLP search API call failed: %s", e)
+        return {}, [], [], 0
+
+
+def _nlp_jobs_embed(query, filter_labels, jobs, total):
+    """Build a Discord embed for NLP search results."""
+    embed = discord.Embed(color=0x3498DB)
+
+    # Show parsed understanding
+    if filter_labels:
+        embed.title = "I understood:"
+        embed.description = " | ".join(f"**{label}**" for label in filter_labels)
+    else:
+        embed.title = f"Search: {query}"
+
+    if not jobs:
+        embed.add_field(
+            name="No results",
+            value="No jobs found matching your query. Try broadening your search.",
+            inline=False,
+        )
+        embed.color = 0x95A5A6
+        return embed
+
+    # Show up to 7 jobs in embed (Discord has field limits)
+    for j in jobs[:7]:
+        score = j.get("relevance_score", 0)
+        loc = j.get("location") or "N/A"
+        remote = j.get("remote_status", "")
+        if remote and remote != "on-site":
+            loc = f"{loc} ({remote.title()})"
+        portal = (j.get("portal") or "").title()
+
+        # Salary info
+        salary_text = ""
+        if j.get("salary"):
+            salary_text = f" | {j.get('salary_currency', '')} {j['salary']}"
+
+        name = f"{j.get('role', 'Unknown')} @ {j.get('company', 'Unknown')}"
+        value = f"Score: **{score}**/100 | {loc} | {portal}{salary_text}"
+        url = j.get("apply_url")
+        if url:
+            value += f"\n[Apply]({url})"
+
+        embed.add_field(name=name, value=value, inline=False)
+
+    if total > 7:
+        embed.set_footer(text=f"Showing 7 of {total} matches | Job Search Agent")
+    else:
+        embed.set_footer(text=f"{total} match{'es' if total != 1 else ''} | Job Search Agent")
+
+    return embed
 
 
 def _jobs_embed(jobs, title):
@@ -217,8 +300,13 @@ def _trigger_scrape():
 
 HELP_TEXT = """**Hey! I'm your Job Search Agent bot.** Just talk to me naturally:
 
+**Smart Search** — Ask in plain English and I'll parse your filters:
+  "remote PM jobs in Bangalore above 20 lakhs"
+  "startup roles in Mumbai for 3-7 years experience"
+  "senior positions in Delhi under 30 lpa"
+  "hybrid software engineer jobs in Pune"
+
 **See jobs** — "show me latest jobs", "top 5 jobs", "best jobs"
-**Search** — "search for product manager", "find me fintech roles", "any jobs at Google"
 **Stats** — "show stats", "how many jobs", "give me a summary"
 **Scrape** — "start scraping", "find new jobs", "run the scraper"
 **Help** — "help", "what can you do"
@@ -286,43 +374,37 @@ def _create_bot():
             await message.channel.send(msg if ok else f"Hmm, something went wrong: {msg}")
             return
 
-        # Search (extract the query from the matched group)
-        search_match = _match_any(text, _SEARCH_PATTERNS)
-        if search_match:
-            query = search_match.group(1).strip() if search_match.lastindex else ""
-            if not query:
-                await message.channel.send("What should I search for? e.g. \"search for product manager\"")
-                return
-            # Clean trailing punctuation
-            query = re.sub(r"[?.!]+$", "", query).strip()
-            jobs = _search_jobs(query)
-            embed = _jobs_embed(jobs, f"Search: {query}")
+        # Stats (check before NLP search to avoid it swallowing "stats")
+        if _match_any(text, _STATS_PATTERNS):
+            embed = _stats_embed()
             await message.channel.send(embed=embed)
             return
 
-        # Jobs listing
-        if _match_any(text, _JOBS_PATTERNS):
+        # Jobs listing (simple "show jobs" without filters)
+        if _match_any(text, _JOBS_PATTERNS) and not _looks_like_nlp_query(text):
             limit = _extract_number(text)
             jobs = _fetch_latest_jobs(limit)
             embed = _jobs_embed(jobs, f"Top {limit} Jobs")
             await message.channel.send(embed=embed)
             return
 
-        # Stats
-        if _match_any(text, _STATS_PATTERNS):
-            embed = _stats_embed()
-            await message.channel.send(embed=embed)
+        # NLP Search — handles everything else: natural language queries,
+        # "search for X", "find me Y", and any freeform job queries
+        await message.channel.send("Searching...")
+        query = text
+        # If it matched a search pattern, extract the query part
+        search_match = _match_any(text, _SEARCH_PATTERNS)
+        if search_match and search_match.lastindex:
+            query = search_match.group(1).strip()
+        query = re.sub(r"[?.!]+$", "", query).strip()
+
+        if not query:
+            await message.channel.send("What should I search for? Try something like \"remote PM jobs in Bangalore above 20 lakhs\"")
             return
 
-        # Fallback — didn't understand
-        await message.channel.send(
-            "I'm not sure what you mean. Try something like:\n"
-            "• \"show me latest jobs\"\n"
-            "• \"search for product manager\"\n"
-            "• \"show stats\"\n"
-            "• \"start scraping\"\n"
-            "• \"help\""
-        )
+        filters, filter_labels, jobs, total = _nlp_search(query)
+        embed = _nlp_jobs_embed(query, filter_labels, jobs, total)
+        await message.channel.send(embed=embed)
 
     return client
 
