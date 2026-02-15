@@ -408,9 +408,35 @@ def _run_live_search(query, location):
             live_search_status["running"] = False
 
 
-# Guard against double-fire with Flask debug reloader
-# Skip scheduler entirely on Vercel (serverless – no persistent processes)
-if not _IS_VERCEL and (os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug):
+# ---------------------------------------------------------------------------
+# Scheduler & Discord bot startup guards
+# ---------------------------------------------------------------------------
+# Skip on Vercel (serverless – no persistent processes).
+# Flask dev mode: only start in the reloader child (WERKZEUG_RUN_MAIN=true).
+# Gunicorn with --preload: code runs once in the arbiter, then workers fork.
+#   The arbiter imports gunicorn.arbiter, workers do not – use that to detect
+#   we are in a preloaded arbiter and start background tasks there (they
+#   survive fork because they are daemon threads).
+# Gunicorn without --preload: each worker imports app.py; with 1 worker this
+#   is fine – start unconditionally when not in debug mode.
+
+
+def _is_gunicorn_arbiter():
+    """Return True if we are running inside the gunicorn arbiter (master)."""
+    return "gunicorn" in os.environ.get("SERVER_SOFTWARE", "")
+
+
+def _should_start_background_tasks():
+    if _IS_VERCEL:
+        return False
+    # Flask dev server with reloader
+    if app.debug:
+        return os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+    # Gunicorn or any other production server
+    return True
+
+
+if _should_start_background_tasks():
     setup_background_scheduler()
 
     # Start Discord bot if token is configured

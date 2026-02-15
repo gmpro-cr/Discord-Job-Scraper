@@ -22,4 +22,4 @@ ENV DATA_DIR=/data
 EXPOSE ${PORT:-10000}
 
 # Single worker required: APScheduler and scraper state are in-memory globals
-CMD gunicorn --bind 0.0.0.0:${PORT:-10000} --timeout 300 --workers 1 app:app
+CMD gunicorn --bind 0.0.0.0:${PORT:-10000} --timeout 300 --workers 1 --access-logfile - --preload app:app

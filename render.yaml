@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: job-search-agent
+    runtime: docker
+    plan: starter
+    region: singapore
+    healthCheckPath: /
+    disk:
+      name: job-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: FLASK_SECRET
+        generateValue: true
+      - key: GMAIL_ADDRESS
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+      - key: EMAIL_RECIPIENT
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: DISCORD_MIN_SCORE
+        value: "65"
+      - key: APOLLO_API_KEY
+        sync: false
+
+  - type: cron
+    name: job-search-agent-daily-scrape
+    runtime: python
+    plan: starter
+    region: singapore
+    schedule: "30 5 * * *"
+    buildCommand: pip install requests
+    startCommand: python -c "import requests; r = requests.post('https://job-search-agent.onrender.com/api/scraper/start'); print(r.status_code, r.text)"
