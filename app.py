@@ -33,6 +33,7 @@ from digest_generator import generate_digest, get_latest_digest, DIGEST_DIR
 from email_notifier import send_job_email
 from apollo_enricher import enrich_jobs_with_contacts
 from discord_notifier import send_discord_alert, send_discord_batch_summary
+from discord_bot import start_discord_bot
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -403,6 +404,12 @@ def _run_live_search(query, location):
 if not _IS_VERCEL and (os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug):
     setup_background_scheduler()
 
+    # Start Discord bot if token is configured
+    _bot_prefs = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
+    _bot_token = _bot_prefs.get("discord_bot_token", "").strip()
+    if _bot_token:
+        start_discord_bot(_bot_token)
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -410,6 +417,12 @@ if not _IS_VERCEL and (os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.
 @app.route("/")
 def index():
     return redirect(url_for("dashboard"))
+
+
+@app.route("/favicon.ico")
+def favicon():
+    # Return 204 No Content to avoid 500 errors when favicon is missing
+    return "", 204
 
 
 @app.route("/dashboard")
@@ -580,6 +593,7 @@ def preferences():
             "apollo_api_key": request.form.get("apollo_api_key", "").strip(),
             "discord_webhook_url": request.form.get("discord_webhook_url", "").strip(),
             "discord_min_score": max(0, min(100, int(request.form.get("discord_min_score", "65")))),
+            "discord_bot_token": request.form.get("discord_bot_token", "").strip(),
         }
         save_preferences(prefs)
         flash("Preferences saved successfully!", "success")
