@@ -1094,18 +1094,65 @@ SCRAPER_MAP = {
 }
 
 
+def _normalize_company_name(name):
+    """Normalize company name by stripping common suffixes and noise."""
+    import re as _re
+    if not name:
+        return ""
+    name = name.lower().strip()
+    # Strip common suffixes
+    for suffix in [
+        r'\bpvt\.?\s*ltd\.?', r'\bprivate\s+limited', r'\blimited', r'\bltd\.?',
+        r'\binc\.?', r'\bcorp\.?', r'\bcorporation', r'\bllc', r'\bllp',
+        r'\btechnologies', r'\bsolutions', r'\bservices', r'\bconsulting',
+        r'\bglobal', r'\bindia', r'\b\(india\)',
+    ]:
+        name = _re.sub(suffix, '', name)
+    # Collapse whitespace
+    name = _re.sub(r'\s+', ' ', name).strip().rstrip('.,- ')
+    return name
+
+
+def _fuzzy_role_match(role1, role2):
+    """Check if two role titles are fuzzy matches via substring or word overlap."""
+    if not role1 or not role2:
+        return False
+    r1 = role1.lower().strip()
+    r2 = role2.lower().strip()
+    # Exact match
+    if r1 == r2:
+        return True
+    # Substring match
+    if r1 in r2 or r2 in r1:
+        return True
+    # Word overlap >= 80%
+    words1 = set(r1.split())
+    words2 = set(r2.split())
+    if not words1 or not words2:
+        return False
+    overlap = len(words1 & words2)
+    shorter = min(len(words1), len(words2))
+    if shorter > 0 and overlap / shorter >= 0.8:
+        return True
+    return False
+
+
 def deduplicate_jobs(jobs):
-    """Remove duplicate jobs based on company + role + location."""
-    seen = set()
+    """Remove duplicate jobs using fuzzy company name and role matching."""
     unique = []
+    seen = []  # List of (normalized_company, role, location) tuples
     for job in jobs:
-        key = (
-            job["company"].lower().strip(),
-            job["role"].lower().strip(),
-            (job.get("location") or "").lower().strip(),
-        )
-        if key not in seen:
-            seen.add(key)
+        norm_company = _normalize_company_name(job["company"])
+        role = job["role"]
+        loc = (job.get("location") or "").lower().strip()
+
+        is_dup = False
+        for seen_company, seen_role, seen_loc in seen:
+            if norm_company == seen_company and _fuzzy_role_match(role, seen_role):
+                is_dup = True
+                break
+        if not is_dup:
+            seen.append((norm_company, role, loc))
             unique.append(job)
     return unique
 

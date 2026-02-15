@@ -27,6 +27,29 @@
   </div>
 </div>
 
+<!-- Recommended Actions -->
+{% if recommendations %}
+<div class="bg-white rounded-lg shadow mb-6">
+  <div class="px-5 py-4 border-b border-gray-200">
+    <h2 class="text-lg font-semibold text-gray-900">Recommended Actions</h2>
+  </div>
+  <div class="p-5 space-y-3">
+    {% for rec in recommendations %}
+    <a href="{{ rec.link }}" class="flex items-start space-x-3 p-3 rounded-md hover:bg-gray-50 transition-colors">
+      {% if rec.type == 'action' %}
+      <span class="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-red-500"></span>
+      {% elif rec.type == 'reminder' %}
+      <span class="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-amber-500"></span>
+      {% else %}
+      <span class="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-blue-500"></span>
+      {% endif %}
+      <span class="text-sm text-gray-700">{{ rec.text }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
   <!-- Portal Quality -->
   <div class="lg:col-span-2 bg-white rounded-lg shadow">
@@ -114,6 +137,111 @@
     </div>
   </div>
 </div>
+
+<!-- Application Pipeline & Best Categories -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+  <!-- Application Pipeline -->
+  <div class="bg-white rounded-lg shadow">
+    <div class="px-5 py-4 border-b border-gray-200">
+      <h2 class="text-lg font-semibold text-gray-900">Application Pipeline</h2>
+    </div>
+    <div class="p-5">
+      {% if pipeline %}
+      <div class="space-y-3">
+        {% set pipe_colors = {
+          'New': 'bg-gray-200', 'Applied': 'bg-green-200', 'Saved': 'bg-blue-200',
+          'Phone Screen': 'bg-cyan-200', 'Interview': 'bg-orange-200',
+          'Offer': 'bg-emerald-200', 'Rejected': 'bg-red-200'
+        } %}
+        {% set pipe_max = pipeline.values() | max if pipeline.values() | list else 1 %}
+        {% for stage, count in pipeline.items() %}
+        <div>
+          <div class="flex justify-between text-sm mb-1">
+            <span class="text-gray-700">{{ stage }}</span>
+            <span class="font-medium text-gray-900">{{ count }}</span>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-2">
+            <div class="{{ pipe_colors.get(stage, 'bg-gray-300') }} h-2 rounded-full" style="width: {{ (count / pipe_max * 100) if pipe_max > 0 else 0 }}%"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-gray-500 text-sm">No pipeline data yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Best Matching Categories -->
+  <div class="bg-white rounded-lg shadow">
+    <div class="px-5 py-4 border-b border-gray-200">
+      <h2 class="text-lg font-semibold text-gray-900">Best Matching Categories</h2>
+    </div>
+    <div class="p-5">
+      {% if categories %}
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-gray-500 border-b">
+            <th class="pb-2 font-medium">Category</th>
+            <th class="pb-2 font-medium text-right">Jobs</th>
+            <th class="pb-2 font-medium text-right">Avg Score</th>
+            <th class="pb-2 font-medium text-right">Applied</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cat in categories %}
+          <tr class="border-b border-gray-100">
+            <td class="py-2 font-medium text-gray-900">{{ cat.category }}</td>
+            <td class="py-2 text-right text-gray-700">{{ cat.total }}</td>
+            <td class="py-2 text-right">
+              <span class="inline-block px-2 py-0.5 rounded text-xs font-medium
+                {% if cat.avg_score >= 70 %}bg-green-100 text-green-800
+                {% elif cat.avg_score >= 50 %}bg-yellow-100 text-yellow-800
+                {% else %}bg-gray-100 text-gray-700{% endif %}">
+                {{ cat.avg_score }}
+              </span>
+            </td>
+            <td class="py-2 text-right text-gray-700">{{ cat.applied }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-gray-500 text-sm">No data yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Application Activity -->
+{% if activity %}
+<div class="mt-6 bg-white rounded-lg shadow">
+  <div class="px-5 py-4 border-b border-gray-200">
+    <h2 class="text-lg font-semibold text-gray-900">Recent Activity (Last 14 Days)</h2>
+  </div>
+  <div class="p-5">
+    <div class="grid grid-cols-7 gap-2 text-center">
+      {% for day in activity | reverse %}
+      <div class="flex flex-col items-center">
+        <div class="text-xs text-gray-400 mb-1">{{ day.day[5:] }}</div>
+        <div class="w-full bg-gray-100 rounded-md relative" style="height: 60px;">
+          {% set max_found = activity | map(attribute='found') | max if activity else 1 %}
+          <div class="absolute bottom-0 left-0 right-0 bg-indigo-200 rounded-md" style="height: {{ (day.found / max_found * 100) if max_found > 0 else 0 }}%"></div>
+          {% if day.acted_on > 0 %}
+          <div class="absolute bottom-0 left-0 right-0 bg-green-400 rounded-md" style="height: {{ (day.acted_on / max_found * 100) if max_found > 0 else 0 }}%"></div>
+          {% endif %}
+        </div>
+        <div class="text-xs font-medium text-gray-700 mt-1">{{ day.found }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="flex items-center gap-4 mt-3 text-xs text-gray-500">
+      <div class="flex items-center gap-1"><span class="w-3 h-3 bg-indigo-200 rounded"></span> Found</div>
+      <div class="flex items-center gap-1"><span class="w-3 h-3 bg-green-400 rounded"></span> Acted On</div>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <!-- Quick Actions -->
 <div class="mt-8 flex flex-wrap gap-3">

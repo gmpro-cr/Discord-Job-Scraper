@@ -9,6 +9,40 @@
   </div>
 </div>
 
+<!-- NLP Chat Search -->
+<div class="bg-white rounded-lg shadow mb-6 overflow-hidden">
+  <div class="px-5 pt-4 pb-2 border-b border-gray-100">
+    <div class="flex items-center gap-2">
+      <svg class="w-5 h-5 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+      </svg>
+      <h2 class="text-lg font-semibold text-gray-900">Smart Search</h2>
+      <span class="text-xs text-gray-400 ml-1">Ask in plain English</span>
+    </div>
+  </div>
+
+  <!-- Chat history -->
+  <div id="nlp-chat-history" class="px-5 py-3 max-h-96 overflow-y-auto space-y-3" style="display:none;"></div>
+
+  <!-- Input -->
+  <div class="px-5 py-3">
+    <form id="nlp-form" onsubmit="sendNlpQuery(event)" class="flex gap-2">
+      <input type="text" id="nlp-input"
+             placeholder="e.g. &quot;remote PM jobs in Bangalore above 20 lakhs&quot;"
+             class="flex-1 text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2.5"
+             autocomplete="off">
+      <button type="submit" id="nlp-send-btn"
+              class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+        </svg>
+        Ask
+      </button>
+    </form>
+    <p class="text-xs text-gray-400 mt-1.5">Try: "startup PM roles in Mumbai", "senior positions above 30 lakhs", "jobs I haven't applied to"</p>
+  </div>
+</div>
+
 <!-- Live Search Section -->
 <div class="bg-white rounded-lg shadow p-5 mb-6">
   <h2 class="text-lg font-semibold text-gray-900 mb-3">Live Search</h2>
@@ -117,11 +151,32 @@
       </select>
     </div>
     <div>
+      <select name="experience" class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
+        <option value="">All Experience</option>
+        <option value="0-3" {% if filters.experience == '0-3' %}selected{% endif %}>0-3 years</option>
+        <option value="3-7" {% if filters.experience == '3-7' %}selected{% endif %}>3-7 years</option>
+        <option value="7-12" {% if filters.experience == '7-12' %}selected{% endif %}>7-12 years</option>
+        <option value="12+" {% if filters.experience == '12+' %}selected{% endif %}>12+ years</option>
+      </select>
+    </div>
+    <div>
+      <input type="number" name="salary_min" value="{{ filters.salary_min }}" placeholder="Min salary (lakhs)"
+             class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
+    </div>
+    <div>
+      <input type="number" name="salary_max" value="{{ filters.salary_max }}" placeholder="Max salary (lakhs)"
+             class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
+    </div>
+    <div>
       <select name="applied" class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
         <option value="">All Status</option>
-        <option value="none" {% if filters.applied == 'none' %}selected{% endif %}>Not Applied</option>
+        <option value="none" {% if filters.applied == 'none' %}selected{% endif %}>New</option>
         <option value="applied" {% if filters.applied == 'applied' %}selected{% endif %}>Applied</option>
         <option value="saved" {% if filters.applied == 'saved' %}selected{% endif %}>Saved</option>
+        <option value="phone_screen" {% if filters.applied == 'phone_screen' %}selected{% endif %}>Phone Screen</option>
+        <option value="interview" {% if filters.applied == 'interview' %}selected{% endif %}>Interview</option>
+        <option value="offer" {% if filters.applied == 'offer' %}selected{% endif %}>Offer</option>
+        <option value="rejected" {% if filters.applied == 'rejected' %}selected{% endif %}>Rejected</option>
       </select>
     </div>
     <div class="flex items-end">
@@ -158,6 +213,20 @@
           <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Applied</span>
           {% elif job.applied_status == 2 %}
           <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Saved</span>
+          {% elif job.applied_status == 3 %}
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-cyan-100 text-cyan-800">Phone Screen</span>
+          {% elif job.applied_status == 4 %}
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">Interview</span>
+          {% elif job.applied_status == 5 %}
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">Offer</span>
+          {% elif job.applied_status == 6 %}
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Rejected</span>
+          {% endif %}
+          {% if job.company_funding_stage %}
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800">{{ job.company_funding_stage }}</span>
+          {% endif %}
+          {% if job.company_size %}
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">{{ job.company_size }}</span>
           {% endif %}
         </div>
 
@@ -166,6 +235,9 @@
         <p class="text-sm text-gray-600">{{ job.company }}{% if job.location %} &middot; {{ job.location }}{% endif %}{% if job.date_posted %} &middot; <span class="text-indigo-600">Posted {{ job.date_posted }}</span>{% endif %}</p>
         {% if job.salary %}
         <p class="text-sm text-green-700 font-medium mt-1">{{ job.salary_currency }} {{ job.salary }}</p>
+        {% endif %}
+        {% if job.experience_min is not none %}
+        <p class="text-sm text-gray-500 mt-0.5">Experience: {{ job.experience_min }}-{{ job.experience_max }} years</p>
         {% endif %}
 
         <!-- Description excerpt -->
@@ -208,23 +280,33 @@
     {% endif %}
 
     <!-- Actions -->
-    <div class="flex flex-wrap gap-2 mt-4 pt-3 border-t border-gray-100">
+    <div class="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-gray-100">
       {% if job.apply_url %}
       <a href="{{ job.apply_url }}" target="_blank" rel="noopener"
          class="inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-md hover:bg-indigo-700">
         Apply Now
       </a>
       {% endif %}
-      <button onclick="updateJobStatus('{{ job.job_id }}', 1, this)"
-              class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md border
-                {% if job.applied_status == 1 %}bg-green-50 text-green-700 border-green-300{% else %}bg-white text-gray-700 border-gray-300 hover:bg-gray-50{% endif %}">
-        {% if job.applied_status == 1 %}Applied{% else %}Mark Applied{% endif %}
+      <select onchange="updateJobStatus('{{ job.job_id }}', this.value)"
+              class="text-xs rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-1.5">
+        <option value="0" {% if job.applied_status == 0 %}selected{% endif %}>New</option>
+        <option value="1" {% if job.applied_status == 1 %}selected{% endif %}>Applied</option>
+        <option value="2" {% if job.applied_status == 2 %}selected{% endif %}>Saved</option>
+        <option value="3" {% if job.applied_status == 3 %}selected{% endif %}>Phone Screen</option>
+        <option value="4" {% if job.applied_status == 4 %}selected{% endif %}>Interview</option>
+        <option value="5" {% if job.applied_status == 5 %}selected{% endif %}>Offer</option>
+        <option value="6" {% if job.applied_status == 6 %}selected{% endif %}>Rejected</option>
+      </select>
+      <button onclick="fetchTailoredPoints('{{ job.job_id }}', this)"
+              class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md border bg-white text-gray-700 border-gray-300 hover:bg-gray-50">
+        Tailored Points
       </button>
-      <button onclick="updateJobStatus('{{ job.job_id }}', 2, this)"
-              class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md border
-                {% if job.applied_status == 2 %}bg-blue-50 text-blue-700 border-blue-300{% else %}bg-white text-gray-700 border-gray-300 hover:bg-gray-50{% endif %}">
-        {% if job.applied_status == 2 %}Saved{% else %}Save for Later{% endif %}
-      </button>
+    </div>
+
+    <!-- Tailored Points Panel (hidden by default) -->
+    <div id="tailored-{{ job.job_id }}" class="hidden mt-3 p-3 bg-amber-50 rounded-md border border-amber-200">
+      <p class="text-xs font-semibold text-amber-800 mb-2">Tailored Resume Points:</p>
+      <ul id="tailored-list-{{ job.job_id }}" class="space-y-1 text-sm text-amber-900"></ul>
     </div>
   </div>
   {% endfor %}
@@ -400,11 +482,11 @@ fetch('/api/search/status')
     }
   });
 
-function updateJobStatus(jobId, status, btn) {
+function updateJobStatus(jobId, status) {
   fetch(`/api/jobs/${jobId}/status`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({status: status}),
+    body: JSON.stringify({status: parseInt(status)}),
   })
   .then(r => r.json())
   .then(data => {
@@ -413,6 +495,191 @@ function updateJobStatus(jobId, status, btn) {
     }
   })
   .catch(err => console.error('Error updating job status:', err));
+}
+
+// ---- NLP Chat Search ----
+
+function sendNlpQuery(e) {
+  e.preventDefault();
+  const input = document.getElementById('nlp-input');
+  const query = input.value.trim();
+  if (!query) return;
+
+  const history = document.getElementById('nlp-chat-history');
+  history.style.display = 'block';
+
+  // Add user message bubble
+  const userBubble = document.createElement('div');
+  userBubble.className = 'flex justify-end';
+  userBubble.innerHTML = `<div class="bg-indigo-600 text-white text-sm rounded-lg rounded-br-sm px-3 py-2 max-w-md">${escapeHtml(query)}</div>`;
+  history.appendChild(userBubble);
+
+  // Add loading bubble
+  const loadingId = 'nlp-loading-' + Date.now();
+  const loadingBubble = document.createElement('div');
+  loadingBubble.id = loadingId;
+  loadingBubble.className = 'flex justify-start';
+  loadingBubble.innerHTML = `<div class="bg-gray-100 text-gray-600 text-sm rounded-lg rounded-bl-sm px-3 py-2">
+    <span class="inline-flex items-center gap-1"><svg class="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg> Thinking...</span>
+  </div>`;
+  history.appendChild(loadingBubble);
+  history.scrollTop = history.scrollHeight;
+
+  input.value = '';
+  const btn = document.getElementById('nlp-send-btn');
+  btn.disabled = true;
+
+  fetch('/api/nlp-search', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({query}),
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    const loading = document.getElementById(loadingId);
+    if (loading) loading.remove();
+
+    if (!data.ok) {
+      appendNlpError(history, data.error || 'Search failed');
+      return;
+    }
+
+    // Build response bubble
+    const resp = document.createElement('div');
+    resp.className = 'flex justify-start';
+
+    // Filter tags
+    const tags = (data.filter_labels || []).map(label =>
+      `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 cursor-pointer hover:bg-indigo-200" onclick="applyNlpFilter(this)">${escapeHtml(label)}</span>`
+    ).join('');
+
+    // Job summary cards (compact)
+    let jobsHtml = '';
+    if (data.jobs && data.jobs.length > 0) {
+      const jobCards = data.jobs.slice(0, 10).map(job => {
+        const scoreColor = job.relevance_score >= 75 ? 'text-green-700 bg-green-100'
+          : job.relevance_score >= 50 ? 'text-yellow-700 bg-yellow-100'
+          : 'text-gray-600 bg-gray-100';
+        const remoteBadge = job.remote_status === 'remote'
+          ? '<span class="text-xs text-green-700 bg-green-50 px-1 rounded">Remote</span>'
+          : job.remote_status === 'hybrid'
+          ? '<span class="text-xs text-yellow-700 bg-yellow-50 px-1 rounded">Hybrid</span>'
+          : '';
+        const salary = job.salary ? `<span class="text-xs text-green-700">${job.salary_currency || ''} ${job.salary}</span>` : '';
+        return `<div class="py-2 border-b border-gray-100 last:border-0">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-gray-900 truncate">${escapeHtml(job.role)}</p>
+              <p class="text-xs text-gray-500">${escapeHtml(job.company)}${job.location ? ' &middot; ' + escapeHtml(job.location) : ''}</p>
+              <div class="flex items-center gap-2 mt-0.5">${remoteBadge}${salary}</div>
+            </div>
+            <div class="flex-shrink-0 flex items-center gap-2">
+              <span class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${scoreColor}">${job.relevance_score}</span>
+              ${job.apply_url ? `<a href="${job.apply_url}" target="_blank" rel="noopener" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap">Apply</a>` : ''}
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+
+      const moreCount = data.total > 10 ? `<p class="text-xs text-gray-400 pt-1">${data.total - 10} more jobs match. <a href="/jobs?${buildFilterQueryString(data.filters)}" class="text-indigo-600 hover:underline">View all ${data.total}</a></p>` : '';
+      jobsHtml = `<div class="mt-2">${jobCards}${moreCount}</div>`;
+    } else {
+      jobsHtml = '<p class="text-sm text-gray-500 mt-2">No jobs found matching your query. Try broadening your search.</p>';
+    }
+
+    resp.innerHTML = `<div class="bg-gray-50 border border-gray-200 text-sm rounded-lg rounded-bl-sm px-4 py-3 max-w-lg w-full">
+      <p class="text-xs font-medium text-gray-500 mb-1.5">I understood:</p>
+      <div class="flex flex-wrap gap-1.5 mb-1">${tags || '<span class="text-xs text-gray-400">No specific filters detected</span>'}</div>
+      <p class="text-sm font-medium text-gray-800 mt-2">${data.total} job${data.total !== 1 ? 's' : ''} found</p>
+      ${jobsHtml}
+      <div class="mt-2 pt-2 border-t border-gray-200">
+        <a href="/jobs?${buildFilterQueryString(data.filters)}" class="text-xs font-medium text-indigo-600 hover:text-indigo-800">View full results with filters applied &rarr;</a>
+      </div>
+    </div>`;
+
+    history.appendChild(resp);
+    history.scrollTop = history.scrollHeight;
+  })
+  .catch(err => {
+    btn.disabled = false;
+    const loading = document.getElementById(loadingId);
+    if (loading) loading.remove();
+    appendNlpError(history, 'Network error: ' + err.message);
+  });
+}
+
+function appendNlpError(container, msg) {
+  const errBubble = document.createElement('div');
+  errBubble.className = 'flex justify-start';
+  errBubble.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg rounded-bl-sm px-3 py-2">${escapeHtml(msg)}</div>`;
+  container.appendChild(errBubble);
+  container.scrollTop = container.scrollHeight;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function buildFilterQueryString(filters) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters || {})) {
+    if (value) params.set(key, value);
+  }
+  return params.toString();
+}
+
+function applyNlpFilter(el) {
+  // Parse the filter tag text and navigate to /jobs with that filter applied
+  const text = el.textContent.trim();
+  const current = new URLSearchParams(window.location.search);
+
+  // Map label patterns back to filter params
+  const match = text.match(/^(\w[\w\s]*?):\s*(.+)$/);
+  if (match) {
+    const key = match[1].toLowerCase().trim();
+    const val = match[2].trim().replace(/"/g, '');
+    const keyMap = {search:'search', location:'location', remote:'remote', company:'company_type', experience:'experience', status:'applied'};
+    if (key === 'salary') {
+      if (val.startsWith('>')) current.set('salary_min', val.replace(/[^0-9]/g, ''));
+      else if (val.startsWith('<')) current.set('salary_max', val.replace(/[^0-9]/g, ''));
+    } else if (keyMap[key]) {
+      current.set(keyMap[key], val.toLowerCase());
+    }
+  }
+  window.location.href = '/jobs?' + current.toString();
+}
+
+function fetchTailoredPoints(jobId, btn) {
+  const panel = document.getElementById('tailored-' + jobId);
+  const list = document.getElementById('tailored-list-' + jobId);
+
+  // Toggle if already visible
+  if (!panel.classList.contains('hidden')) {
+    panel.classList.add('hidden');
+    return;
+  }
+
+  btn.textContent = 'Loading...';
+  btn.disabled = true;
+
+  fetch(`/api/jobs/${jobId}/tailored-points`)
+    .then(r => r.json())
+    .then(data => {
+      btn.textContent = 'Tailored Points';
+      btn.disabled = false;
+      if (data.ok && data.points) {
+        list.innerHTML = data.points.map(p => `<li class="flex items-start"><span class="text-amber-600 mr-2">&#8226;</span><span>${p}</span></li>`).join('');
+        panel.classList.remove('hidden');
+      }
+    })
+    .catch(err => {
+      btn.textContent = 'Tailored Points';
+      btn.disabled = false;
+      console.error('Error fetching tailored points:', err);
+    });
 }
 </script>
 {% endblock %}

@@ -10,6 +10,13 @@ import logging
 import threading
 from datetime import datetime, timedelta
 
+# Load .env before anything else reads os.environ
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+except ImportError:
+    pass
+
 from flask import (
     Flask, render_template, request, redirect, url_for,
     flash, jsonify, send_from_directory,
@@ -20,15 +27,17 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from main import load_config, load_preferences, save_preferences, DEFAULT_PREFS, apply_env_overrides
+from main import load_config, load_preferences, save_preferences, DEFAULT_PREFS, apply_env_overrides, _CREDENTIAL_KEYS
 from database import (
     init_db, get_connection, get_comprehensive_stats, get_portal_quality_stats,
     update_applied_status, insert_jobs_bulk, generate_job_id, mark_sent_in_digest,
     get_unsent_jobs, update_job_contacts, get_distinct_locations,
     get_normalized_locations, normalize_location, _CITY_PATTERNS,
+    get_application_pipeline_stats, get_best_matching_categories,
+    get_application_activity, get_recommended_actions,
 )
 from scrapers import scrape_all_portals
-from analyzer import analyze_jobs
+from analyzer import analyze_jobs, generate_tailored_points, parse_nlp_query
 from digest_generator import generate_digest, get_latest_digest, DIGEST_DIR
 from email_notifier import send_job_email
 from apollo_enricher import enrich_jobs_with_contacts
@@ -429,30 +438,37 @@ def favicon():
 def dashboard():
     stats = get_comprehensive_stats()
     portal_quality = get_portal_quality_stats()
-    return render_template("dashboard.html", stats=stats, portal_quality=portal_quality)
+    pipeline = get_application_pipeline_stats()
+    categories = get_best_matching_categories()
+    activity = get_application_activity()
+    recommendations = get_recommended_actions()
+    return render_template(
+        "dashboard.html", stats=stats, portal_quality=portal_quality,
+        pipeline=pipeline, categories=categories, activity=activity,
+        recommendations=recommendations,
+    )
 
 
-@app.route("/jobs")
-def jobs():
-    # Read filter params
-    search = request.args.get("search", "").strip()
-    portal = request.args.get("portal", "")
-    remote = request.args.get("remote", "")
-    company_type = request.args.get("company_type", "")
-    sort = request.args.get("sort", "score_desc")
-    applied = request.args.get("applied", "")
-    location = request.args.get("location", "")
-    recency = request.args.get("recency", "")
-    min_score = request.args.get("min_score", "40")  # default 40 to cut noise
-    page = max(1, int(request.args.get("page", "1")))
-    per_page = 25
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    # Build query
+def _build_jobs_query(filters):
+    """
+    Build SQL WHERE clause and params from a filters dict.
+    Returns (conditions, params, order) where conditions is a list of SQL fragments.
+    """
     conditions = []
     params = []
+
+    search = filters.get("search", "")
+    portal = filters.get("portal", "")
+    remote = filters.get("remote", "")
+    company_type = filters.get("company_type", "")
+    sort = filters.get("sort", "score_desc")
+    applied = filters.get("applied", "")
+    location = filters.get("location", "")
+    recency = filters.get("recency", "")
+    min_score = filters.get("min_score", "40")
+    experience = filters.get("experience", "")
+    salary_min = filters.get("salary_min", "")
+    salary_max = filters.get("salary_max", "")
 
     # Default minimum score filter (0 = show all)
     try:
@@ -477,7 +493,6 @@ def jobs():
         conditions.append("company_type = ?")
         params.append(company_type)
     if location:
-        # Use normalized location matching: find the patterns for this canonical city
         city_patterns = _CITY_PATTERNS.get(location)
         if city_patterns:
             like_clauses = ["location LIKE ?" for _ in city_patterns]
@@ -496,22 +511,53 @@ def jobs():
         td = recency_map.get(recency)
         if td:
             cutoff_date = (datetime.now() - td).strftime("%Y-%m-%d")
-            # Only show jobs that have a known posting date within the range.
-            # Jobs without date_posted are excluded from strict recency filters.
             conditions.append(
                 "(date_posted IS NOT NULL AND date_posted != '' AND date_posted >= ?)"
             )
             params.append(cutoff_date)
-    if applied == "applied":
-        conditions.append("applied_status = 1")
-    elif applied == "saved":
-        conditions.append("applied_status = 2")
-    elif applied == "none":
-        conditions.append("applied_status = 0")
 
-    where = " WHERE " + " AND ".join(conditions) if conditions else ""
+    applied_map = {
+        "none": "applied_status = 0",
+        "applied": "applied_status = 1",
+        "saved": "applied_status = 2",
+        "phone_screen": "applied_status = 3",
+        "interview": "applied_status = 4",
+        "offer": "applied_status = 5",
+        "rejected": "applied_status = 6",
+    }
+    if applied in applied_map:
+        conditions.append(applied_map[applied])
 
-    # Sort
+    if experience:
+        exp_ranges = {
+            "0-3": (0, 3),
+            "3-7": (3, 7),
+            "7-12": (7, 12),
+            "12+": (12, 99),
+        }
+        exp_range = exp_ranges.get(experience)
+        if exp_range:
+            lo, hi = exp_range
+            conditions.append(
+                "(experience_min IS NOT NULL AND experience_min <= ? AND experience_max >= ?)"
+            )
+            params.extend([hi, lo])
+
+    if salary_min:
+        try:
+            sal_min_inr = int(salary_min) * 100_000
+            conditions.append("(salary_min IS NOT NULL AND salary_max >= ?)")
+            params.append(sal_min_inr)
+        except (ValueError, TypeError):
+            pass
+    if salary_max:
+        try:
+            sal_max_inr = int(salary_max) * 100_000
+            conditions.append("(salary_min IS NOT NULL AND salary_min <= ?)")
+            params.append(sal_max_inr)
+        except (ValueError, TypeError):
+            pass
+
     sort_map = {
         "score_desc": "relevance_score DESC",
         "score_asc": "relevance_score ASC",
@@ -520,6 +566,35 @@ def jobs():
         "company_asc": "company ASC",
     }
     order = sort_map.get(sort, "relevance_score DESC")
+
+    return conditions, params, order
+
+
+@app.route("/jobs")
+def jobs():
+    # Read filter params
+    filters = {
+        "search": request.args.get("search", "").strip(),
+        "portal": request.args.get("portal", ""),
+        "remote": request.args.get("remote", ""),
+        "company_type": request.args.get("company_type", ""),
+        "sort": request.args.get("sort", "score_desc"),
+        "applied": request.args.get("applied", ""),
+        "location": request.args.get("location", ""),
+        "recency": request.args.get("recency", ""),
+        "min_score": request.args.get("min_score", "40"),
+        "experience": request.args.get("experience", ""),
+        "salary_min": request.args.get("salary_min", ""),
+        "salary_max": request.args.get("salary_max", ""),
+    }
+    page = max(1, int(request.args.get("page", "1")))
+    per_page = 25
+
+    conditions, params, order = _build_jobs_query(filters)
+    where = " WHERE " + " AND ".join(conditions) if conditions else ""
+
+    conn = get_connection()
+    cursor = conn.cursor()
 
     # Count
     cursor.execute(f"SELECT COUNT(*) as cnt FROM job_listings{where}", params)
@@ -550,12 +625,67 @@ def jobs():
         "jobs.html",
         jobs=rows, total=total, page=page, total_pages=total_pages,
         portals=portals, locations=normalized_locs,
-        filters={
-            "search": search, "portal": portal, "remote": remote,
-            "company_type": company_type, "sort": sort, "applied": applied,
-            "location": location, "recency": recency, "min_score": min_score,
-        },
+        filters=filters,
     )
+
+
+@app.route("/api/nlp-search", methods=["POST"])
+def nlp_search():
+    data = request.get_json(silent=True) or {}
+    query = (data.get("query") or "").strip()
+    if not query:
+        return jsonify({"ok": False, "error": "Empty query"}), 400
+
+    config = load_config()
+    filters = parse_nlp_query(query, config)
+
+    # Default min_score to 0 for NLP search (show all matching jobs)
+    if "min_score" not in filters:
+        filters["min_score"] = "0"
+
+    conditions, params, order = _build_jobs_query(filters)
+    where = " WHERE " + " AND ".join(conditions) if conditions else ""
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(f"SELECT COUNT(*) as cnt FROM job_listings{where}", params)
+    total = cursor.fetchone()["cnt"]
+
+    cursor.execute(
+        f"SELECT * FROM job_listings{where} ORDER BY {order} LIMIT 25",
+        params,
+    )
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+
+    # Build human-readable filter descriptions
+    filter_labels = []
+    if filters.get("search"):
+        filter_labels.append(f'Search: "{filters["search"]}"')
+    if filters.get("location"):
+        filter_labels.append(f'Location: {filters["location"]}')
+    if filters.get("remote"):
+        filter_labels.append(f'Remote: {filters["remote"].title()}')
+    if filters.get("salary_min"):
+        filter_labels.append(f'Salary > {filters["salary_min"]}L')
+    if filters.get("salary_max"):
+        filter_labels.append(f'Salary < {filters["salary_max"]}L')
+    if filters.get("experience"):
+        filter_labels.append(f'Experience: {filters["experience"]} yrs')
+    if filters.get("company_type"):
+        filter_labels.append(f'Company: {filters["company_type"].title()}')
+    if filters.get("applied"):
+        filter_labels.append(f'Status: {filters["applied"]}')
+
+    return jsonify({
+        "ok": True,
+        "query": query,
+        "filters": filters,
+        "filter_labels": filter_labels,
+        "jobs": rows,
+        "total": total,
+    })
 
 
 @app.route("/api/jobs/<job_id>/status", methods=["POST"])
@@ -563,11 +693,13 @@ def update_job_status(job_id):
     data = request.get_json(silent=True) or {}
     status = data.get("status", 0)
     notes = data.get("notes")
+    follow_up_date = data.get("follow_up_date")
+    rejection_reason = data.get("rejection_reason")
     try:
         status = int(status)
     except (ValueError, TypeError):
         status = 0
-    update_applied_status(job_id, status, notes)
+    update_applied_status(job_id, status, notes, follow_up_date, rejection_reason)
     return jsonify({"ok": True, "job_id": job_id, "status": status})
 
 
@@ -585,6 +717,9 @@ def preferences():
             "industries": [
                 i.strip() for i in request.form.get("industries", "").split(",") if i.strip()
             ],
+            "transferable_skills": [
+                s.strip() for s in request.form.get("transferable_skills", "").split(",") if s.strip()
+            ],
             "top_jobs_per_digest": max(3, min(10, int(request.form.get("top_jobs", "5")))),
             "digest_time": request.form.get("digest_time", "6:00 AM").strip(),
             "email": request.form.get("email", "").strip(),
@@ -600,7 +735,30 @@ def preferences():
         return redirect(url_for("preferences"))
 
     prefs = load_preferences() or DEFAULT_PREFS.copy()
-    return render_template("preferences.html", prefs=prefs, config=config)
+    # Tell the template which credential fields are set via env vars
+    env_credentials = {
+        "gmail_app_password": bool(os.environ.get("GMAIL_APP_PASSWORD")),
+        "discord_bot_token": bool(os.environ.get("DISCORD_BOT_TOKEN")),
+        "apollo_api_key": bool(os.environ.get("APOLLO_API_KEY")),
+    }
+    return render_template("preferences.html", prefs=prefs, config=config, env_credentials=env_credentials)
+
+
+@app.route("/api/jobs/<job_id>/tailored-points")
+def tailored_points(job_id):
+    """Generate tailored resume bullet points for a specific job."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM job_listings WHERE job_id = ?", (job_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return jsonify({"ok": False, "error": "Job not found"}), 404
+    job = dict(row)
+    config = load_config()
+    preferences = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
+    points = generate_tailored_points(job, preferences, config)
+    return jsonify({"ok": True, "points": points})
 
 
 @app.route("/scraper")

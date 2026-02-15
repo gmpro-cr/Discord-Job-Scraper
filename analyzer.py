@@ -94,6 +94,169 @@ IRRELEVANT_KEYWORDS = [
 ]
 
 
+# =============================================================================
+# Experience & Salary extraction
+# =============================================================================
+
+def extract_experience_years(text):
+    """
+    Extract experience range from job text.
+    Returns (min_years, max_years) or (None, None) if not found.
+    Examples: "5-10 years", "3+ years", "minimum 5 years", "Senior" title inference.
+    """
+    if not text:
+        return None, None
+    text_lower = text.lower()
+
+    # Pattern: "5-10 years", "5 - 10 yrs"
+    m = re.search(r'(\d{1,2})\s*[-–to]+\s*(\d{1,2})\s*(?:years?|yrs?)', text_lower)
+    if m:
+        return int(m.group(1)), int(m.group(2))
+
+    # Pattern: "3+ years", "3 plus years"
+    m = re.search(r'(\d{1,2})\s*\+?\s*(?:plus\s+)?(?:years?|yrs?)', text_lower)
+    if m:
+        val = int(m.group(1))
+        return val, val + 5
+
+    # Pattern: "minimum 5 years", "at least 5 years"
+    m = re.search(r'(?:minimum|at\s+least|min)\s*(\d{1,2})\s*(?:years?|yrs?)', text_lower)
+    if m:
+        val = int(m.group(1))
+        return val, val + 5
+
+    # Title-based inference
+    title_experience = {
+        "intern": (0, 1),
+        "fresher": (0, 2),
+        "junior": (0, 3),
+        "associate": (1, 4),
+        "mid": (3, 7),
+        "senior": (5, 12),
+        "staff": (7, 15),
+        "lead": (7, 15),
+        "principal": (10, 20),
+        "director": (10, 20),
+        "head": (10, 20),
+        "vp": (12, 25),
+    }
+    for keyword, (lo, hi) in title_experience.items():
+        if keyword in text_lower.split()[:10]:  # Check title area only
+            return lo, hi
+
+    return None, None
+
+
+def parse_salary_to_annual_inr(text, currency=None):
+    """
+    Parse salary text to (min_annual_inr, max_annual_inr).
+    Handles: "INR 10-20 Lacs PA", "10-15 LPA", "$100k-$150k", "50,000/month"
+    Returns (None, None) if unparseable.
+    """
+    if not text:
+        return None, None
+
+    text_lower = text.lower().replace(",", "").replace("₹", "").strip()
+
+    # Detect currency
+    is_usd = currency == "USD" or "$" in text or "usd" in text_lower
+    multiplier = 83 if is_usd else 1  # Approximate USD to INR
+
+    # Extract numbers
+    numbers = re.findall(r'(\d+(?:\.\d+)?)', text_lower)
+    if not numbers:
+        return None, None
+
+    nums = [float(n) for n in numbers[:2]]
+
+    # Determine scale
+    is_monthly = "month" in text_lower or "/m" in text_lower or "per month" in text_lower
+    is_lakh = "lac" in text_lower or "lpa" in text_lower or "lakh" in text_lower or "l " in text_lower
+    is_k = "k" in text_lower and not is_lakh
+    is_crore = "cr" in text_lower or "crore" in text_lower
+
+    scale = 1
+    if is_crore:
+        scale = 10_000_000
+    elif is_lakh:
+        scale = 100_000
+    elif is_k:
+        scale = 1_000
+
+    results = [n * scale * multiplier for n in nums]
+    if is_monthly:
+        results = [r * 12 for r in results]
+
+    # Return as integers (annual INR)
+    if len(results) >= 2:
+        return int(min(results)), int(max(results))
+    elif len(results) == 1:
+        return int(results[0]), int(results[0])
+    return None, None
+
+
+def extract_company_info(text):
+    """
+    Extract company size, funding stage, and glassdoor rating hints from JD text.
+    Returns dict with keys: company_size, company_funding_stage, company_glassdoor_rating
+    """
+    if not text:
+        return {}
+    text_lower = text.lower()
+    info = {}
+
+    # Funding stage detection
+    funding_patterns = {
+        "Pre-Seed": ["pre-seed", "pre seed"],
+        "Seed": ["seed stage", "seed funded", "seed round"],
+        "Series A": ["series a"],
+        "Series B": ["series b"],
+        "Series C": ["series c"],
+        "Series D+": ["series d", "series e", "series f"],
+        "IPO/Public": ["publicly traded", "listed on", "ipo", "nasdaq", "nyse", "bse", "nse listed"],
+        "Bootstrapped": ["bootstrapped", "self-funded", "profitable startup"],
+    }
+    for stage, patterns in funding_patterns.items():
+        if any(p in text_lower for p in patterns):
+            info["company_funding_stage"] = stage
+            break
+
+    # Company size
+    size_patterns = [
+        (r'(\d[\d,]*)\s*\+?\s*employees', None),
+        (r'team\s+of\s+(\d[\d,]*)', None),
+    ]
+    for pattern, _ in size_patterns:
+        m = re.search(pattern, text_lower)
+        if m:
+            count = int(m.group(1).replace(",", ""))
+            if count < 50:
+                info["company_size"] = "Startup (<50)"
+            elif count < 200:
+                info["company_size"] = "Small (50-200)"
+            elif count < 1000:
+                info["company_size"] = "Mid-size (200-1K)"
+            elif count < 10000:
+                info["company_size"] = "Large (1K-10K)"
+            else:
+                info["company_size"] = "Enterprise (10K+)"
+            break
+
+    # Size from keywords if not found
+    if "company_size" not in info:
+        if any(kw in text_lower for kw in ["startup", "early stage", "small team", "founding"]):
+            info["company_size"] = "Startup (<50)"
+        elif any(kw in text_lower for kw in ["fortune 500", "mnc", "global leader", "enterprise"]):
+            info["company_size"] = "Enterprise (10K+)"
+
+    # Glassdoor rating mention
+    m = re.search(r'glassdoor\s*(?:rating)?[:\s]*(\d(?:\.\d)?)', text_lower)
+    if m:
+        info["company_glassdoor_rating"] = m.group(1)
+
+    return info
+
+
 def detect_remote_status(text):
     """Detect whether a job is remote, hybrid, or on-site."""
     text_lower = text.lower()
@@ -147,13 +310,14 @@ def keyword_score(job, preferences):
     This is the fallback scorer when Ollama is unavailable.
 
     Scoring breakdown:
-      - Title match:     0-30  (exact match in role title is heavily rewarded)
-      - Location match:  0-10
-      - Remote bonus:    0-10
-      - Industry match:  0-20  (fintech/banking/lending keywords)
-      - PM keywords:     0-20  (product management terms in description)
-      - Growth signals:  0-10
-      - Penalty:         -20   (irrelevant domain detected)
+      - Title match:           0-30  (exact match in role title is heavily rewarded)
+      - Location match:        0-10
+      - Remote bonus:          0-10
+      - Industry match:        0-20  (fintech/banking/lending keywords)
+      - PM keywords:           0-20  (product management terms in description)
+      - Growth signals:        0-10
+      - Transferable skills:   0-15  (banking/finance skills mentioned in JD)
+      - Penalty:               -20   (irrelevant domain detected)
     """
     score = 0
     role_lower = job.get("role", "").lower()
@@ -224,6 +388,15 @@ def keyword_score(job, preferences):
             growth_score += pts
     score += min(growth_score, 10)
 
+    # Transferable skills from banking/finance (0-15)
+    transferable = preferences.get("transferable_skills", [])
+    if transferable:
+        ts_score = 0
+        for skill in transferable:
+            if skill.lower() in text:
+                ts_score += 5
+        score += min(ts_score, 15)
+
     return min(score, 100)
 
 
@@ -245,11 +418,14 @@ def ollama_score(job, preferences, config):
     model = config.get("scoring", {}).get("ollama_model", "mistral")
     timeout = config.get("scoring", {}).get("ollama_timeout", 60)
 
+    transferable = preferences.get("transferable_skills", [])
+    transferable_text = f"\n- Transferable skills from banking: {', '.join(transferable)}" if transferable else ""
+
     prompt = f"""Analyze this job posting and score it 0-100 for a candidate with the following profile:
 - Career transitioner from banking/financial services to Product Management
 - Looking for roles: {', '.join(preferences.get('job_titles', ['Product Manager']))}
 - Preferred locations: {', '.join(preferences.get('locations', ['Remote']))}
-- Industries of interest: {', '.join(preferences.get('industries', ['Fintech']))}
+- Industries of interest: {', '.join(preferences.get('industries', ['Fintech']))}{transferable_text}
 
 Job Details:
 - Title: {job.get('role', 'Unknown')}
@@ -321,6 +497,80 @@ def generate_application_email(job, preferences):
     return email
 
 
+def generate_tailored_points(job, preferences, config):
+    """
+    Generate tailored resume/cover-letter bullet points for a specific job.
+    Uses Ollama if available, otherwise keyword-based fallback.
+    """
+    role = job.get("role", "the role")
+    company = job.get("company", "the company")
+    description = job.get("job_description", "")
+    transferable = preferences.get("transferable_skills", [])
+    skills = extract_skills(description, max_skills=5)
+
+    # Try Ollama first
+    use_ollama = config.get("scoring", {}).get("use_ollama", True)
+    if use_ollama:
+        try:
+            import ollama as ollama_client
+            model = config.get("scoring", {}).get("ollama_model", "mistral")
+
+            prompt = f"""Generate 4-5 tailored resume bullet points for a banking professional applying to this role.
+
+Role: {role} at {company}
+Key skills needed: {', '.join(skills) if skills else 'product management'}
+Candidate's transferable skills: {', '.join(transferable) if transferable else 'stakeholder management, data analysis, risk management'}
+Job Description: {description[:600]}
+
+Write bullet points that:
+1. Map banking experience to the role requirements
+2. Use specific, quantifiable achievements
+3. Highlight transferable skills
+4. Show domain knowledge advantage
+
+Respond with ONLY a JSON array of strings, like: ["point 1", "point 2", ...]"""
+
+            response = ollama_client.chat(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                options={"temperature": 0.3},
+            )
+            content = response["message"]["content"].strip()
+            # Extract JSON array
+            json_match = re.search(r'\[.*\]', content, re.DOTALL)
+            if json_match:
+                points = json.loads(json_match.group())
+                if isinstance(points, list) and len(points) > 0:
+                    return points
+        except Exception:
+            pass  # Fall through to keyword-based
+
+    # Keyword-based fallback
+    points = []
+    skill_map = {
+        "stakeholder management": f"Led cross-functional stakeholder alignment across 5+ departments at previous banking role, directly applicable to {role} coordination needs",
+        "risk management": f"Built risk assessment frameworks processing 1000+ decisions monthly, transferable to product risk evaluation at {company}",
+        "data analysis": f"Analyzed large-scale financial datasets to drive business decisions, relevant to data-driven product management at {company}",
+        "regulatory compliance": f"Navigated complex regulatory requirements in banking, an advantage for {company}'s compliance-sensitive product decisions",
+        "p&l ownership": f"Managed P&L for banking products with revenue impact, directly applicable to product ownership metrics at {company}",
+        "process optimization": f"Optimized banking workflows reducing processing time by 30%, bringing operational efficiency mindset to {role}",
+        "cross-functional leadership": f"Led cross-functional teams of 10+ in banking transformation projects, relevant to product team collaboration at {company}",
+        "client relationship management": f"Managed relationships with 50+ enterprise banking clients, bringing customer-centric approach to product decisions at {company}",
+    }
+    for skill in transferable:
+        key = skill.lower()
+        if key in skill_map:
+            points.append(skill_map[key])
+    if not points:
+        points = [
+            f"Leverage 10+ years of banking domain expertise to bring unique financial services perspective to {role} at {company}",
+            f"Apply analytical rigor from financial services background to data-driven product decisions at {company}",
+            f"Bring enterprise stakeholder management experience to cross-functional product leadership at {company}",
+            f"Translate deep understanding of customer financial needs into user-centric product strategy for {company}",
+        ]
+    return points[:5]
+
+
 def analyze_jobs(jobs, preferences, config, progress_callback=None):
     """
     Analyze and score all jobs. Uses Ollama if available, falls back to keywords.
@@ -381,6 +631,25 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None):
         job["skills"] = extract_skills(job.get("job_description", ""))
         job["application_email"] = generate_application_email(job, preferences)
 
+        # Extract experience range
+        exp_text = " ".join([job.get("role", ""), job.get("job_description", "")])
+        exp_min, exp_max = extract_experience_years(exp_text)
+        job["experience_min"] = exp_min
+        job["experience_max"] = exp_max
+
+        # Parse salary to annual INR
+        salary_min, salary_max = parse_salary_to_annual_inr(
+            job.get("salary", ""), job.get("salary_currency")
+        )
+        job["salary_min"] = salary_min
+        job["salary_max"] = salary_max
+
+        # Extract company info from JD
+        company_info = extract_company_info(job.get("job_description", ""))
+        job["company_size"] = company_info.get("company_size")
+        job["company_funding_stage"] = company_info.get("company_funding_stage")
+        job["company_glassdoor_rating"] = company_info.get("company_glassdoor_rating")
+
         analyzed.append(job)
 
         if progress_callback:
@@ -398,3 +667,234 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None):
     )
 
     return qualified, analyzed
+
+
+# =============================================================================
+# NLP query parsing for conversational search
+# =============================================================================
+
+# City names for regex fallback (canonical → trigger words)
+_NLP_CITY_TRIGGERS = {
+    "Bengaluru": ["bangalore", "bengaluru", "blr"],
+    "Mumbai": ["mumbai", "bombay"],
+    "Delhi / NCR": ["delhi", "ncr", "noida", "gurgaon", "gurugram"],
+    "Hyderabad": ["hyderabad"],
+    "Chennai": ["chennai"],
+    "Pune": ["pune"],
+    "Kolkata": ["kolkata", "calcutta"],
+    "Ahmedabad": ["ahmedabad"],
+    "Jaipur": ["jaipur"],
+    "Kochi": ["kochi", "cochin"],
+    "Chandigarh": ["chandigarh"],
+    "Indore": ["indore"],
+    "Coimbatore": ["coimbatore"],
+    "Singapore": ["singapore"],
+    "Dubai / UAE": ["dubai", "uae"],
+    "London": ["london"],
+    "US - Remote": ["usa", "united states"],
+    "Remote": ["remote"],
+}
+
+
+def _regex_parse_nlp_query(text):
+    """Regex-based fallback for parsing natural language job queries."""
+    filters = {}
+    remaining = text.lower()
+
+    # Remote / WFH / Hybrid / On-site
+    if re.search(r'\b(remote|wfh|work\s*from\s*home)\b', remaining):
+        filters["remote"] = "remote"
+        remaining = re.sub(r'\b(remote|wfh|work\s*from\s*home)\b', '', remaining)
+    elif re.search(r'\bhybrid\b', remaining):
+        filters["remote"] = "hybrid"
+        remaining = re.sub(r'\bhybrid\b', '', remaining)
+    elif re.search(r'\b(on[\s-]?site|office)\b', remaining):
+        filters["remote"] = "on-site"
+        remaining = re.sub(r'\b(on[\s-]?site|office)\b', '', remaining)
+
+    # Location (check city triggers)
+    for canonical, triggers in _NLP_CITY_TRIGGERS.items():
+        for trigger in triggers:
+            pattern = r'\b' + re.escape(trigger) + r'\b'
+            if re.search(pattern, remaining):
+                filters["location"] = canonical
+                remaining = re.sub(pattern, '', remaining)
+                break
+        if "location" in filters:
+            break
+
+    # Salary: "above/more than/over/minimum X lakhs/lpa/L"
+    sal_min_match = re.search(
+        r'\b(?:above|over|more\s*than|minimum|min|>=?)\s*(\d+)\s*(?:lakhs?|lpa|l|lakh)\b',
+        remaining,
+    )
+    if sal_min_match:
+        filters["salary_min"] = sal_min_match.group(1)
+        remaining = remaining[:sal_min_match.start()] + remaining[sal_min_match.end():]
+
+    # Salary: "below/under/less than/maximum X lakhs"
+    sal_max_match = re.search(
+        r'\b(?:below|under|less\s*than|maximum|max|<=?)\s*(\d+)\s*(?:lakhs?|lpa|l|lakh)\b',
+        remaining,
+    )
+    if sal_max_match:
+        filters["salary_max"] = sal_max_match.group(1)
+        remaining = remaining[:sal_max_match.start()] + remaining[sal_max_match.end():]
+
+    # Salary range: "X-Y lakhs"
+    sal_range_match = re.search(
+        r'\b(\d+)\s*[-to]+\s*(\d+)\s*(?:lakhs?|lpa|l|lakh)\b', remaining,
+    )
+    if sal_range_match and "salary_min" not in filters:
+        filters["salary_min"] = sal_range_match.group(1)
+        filters["salary_max"] = sal_range_match.group(2)
+        remaining = remaining[:sal_range_match.start()] + remaining[sal_range_match.end():]
+
+    # Experience: "X-Y years" or "X+ years"
+    exp_match = re.search(r'\b(\d+)\s*[-to]+\s*(\d+)\s*(?:years?|yrs?)\b', remaining)
+    if exp_match:
+        lo, hi = int(exp_match.group(1)), int(exp_match.group(2))
+        if lo <= 3 and hi <= 3:
+            filters["experience"] = "0-3"
+        elif lo <= 7 and hi <= 7:
+            filters["experience"] = "3-7"
+        elif lo <= 12 and hi <= 12:
+            filters["experience"] = "7-12"
+        else:
+            filters["experience"] = "12+"
+        remaining = remaining[:exp_match.start()] + remaining[exp_match.end():]
+    else:
+        exp_plus_match = re.search(r'\b(\d+)\+?\s*(?:years?|yrs?)\b', remaining)
+        if exp_plus_match:
+            yrs = int(exp_plus_match.group(1))
+            if yrs <= 3:
+                filters["experience"] = "0-3"
+            elif yrs <= 7:
+                filters["experience"] = "3-7"
+            elif yrs <= 12:
+                filters["experience"] = "7-12"
+            else:
+                filters["experience"] = "12+"
+            remaining = remaining[:exp_plus_match.start()] + remaining[exp_plus_match.end():]
+
+    # Seniority keywords → experience
+    if "experience" not in filters:
+        if re.search(r'\b(entry[\s-]?level|fresher|junior)\b', remaining):
+            filters["experience"] = "0-3"
+            remaining = re.sub(r'\b(entry[\s-]?level|fresher|junior)\b', '', remaining)
+        elif re.search(r'\b(senior|lead|principal|staff)\b', remaining):
+            filters["experience"] = "7-12"
+            remaining = re.sub(r'\b(senior|lead|principal|staff)\b', '', remaining)
+
+    # Company type
+    if re.search(r'\bstartup\b', remaining):
+        filters["company_type"] = "startup"
+        remaining = re.sub(r'\bstartup\b', '', remaining)
+    elif re.search(r'\b(corporate|mnc|enterprise)\b', remaining):
+        filters["company_type"] = "corporate"
+        remaining = re.sub(r'\b(corporate|mnc|enterprise)\b', '', remaining)
+
+    # Sort preference
+    if re.search(r'\b(newest|latest|recent)\b', remaining):
+        filters["sort"] = "date_desc"
+        remaining = re.sub(r'\b(newest|latest|recent)\b', '', remaining)
+    elif re.search(r'\b(highest\s*score|best\s*match)\b', remaining):
+        filters["sort"] = "score_desc"
+        remaining = re.sub(r'\b(highest\s*score|best\s*match)\b', '', remaining)
+
+    # Application status
+    if re.search(r"\b(haven'?t applied|not applied|unapplied|new)\b", remaining):
+        filters["applied"] = "none"
+        remaining = re.sub(r"\b(haven'?t applied|not applied|unapplied)\b", '', remaining)
+
+    # Clean up remaining text as search query
+    # Remove filler words
+    remaining = re.sub(
+        r'\b(show|me|find|get|search|for|in|with|at|the|a|an|and|or|jobs?|roles?|positions?|openings?|opportunities?|i|want|need|looking)\b',
+        '', remaining,
+    )
+    remaining = re.sub(r'\s+', ' ', remaining).strip()
+
+    if remaining:
+        filters["search"] = remaining
+
+    return filters
+
+
+def parse_nlp_query(text, config=None):
+    """
+    Parse a natural language job search query into structured filters.
+    Uses Ollama when available, falls back to regex parsing.
+
+    Returns dict with keys: search, location, remote, min_score, experience,
+    salary_min, salary_max, company_type, sort, portal, applied
+    """
+    if not text or not text.strip():
+        return {}
+
+    config = config or {}
+    use_ollama = config.get("scoring", {}).get("use_ollama", True)
+
+    if use_ollama:
+        try:
+            import ollama as ollama_client
+
+            model = config.get("scoring", {}).get("ollama_model", "mistral")
+            timeout = config.get("scoring", {}).get("ollama_timeout", 60)
+
+            prompt = f"""Extract structured job search filters from this natural language query.
+
+Query: "{text}"
+
+Extract any of these fields that are mentioned or implied:
+- search: job title or role keywords (e.g. "product manager", "software engineer")
+- location: city name (use canonical Indian city names like Bengaluru, Mumbai, Delhi / NCR, Hyderabad, Chennai, Pune)
+- remote: one of "remote", "hybrid", or "on-site"
+- salary_min: minimum salary in lakhs (number only, e.g. 20 for "above 20 lakhs")
+- salary_max: maximum salary in lakhs (number only)
+- experience: one of "0-3", "3-7", "7-12", "12+"
+- company_type: one of "startup" or "corporate"
+- sort: one of "score_desc", "date_desc", "date_asc", "company_asc"
+- applied: one of "none" (not applied), "applied", "saved", "interview"
+
+Only include fields that are clearly mentioned or strongly implied. Do not guess.
+
+Respond ONLY with valid JSON. Example:
+{{"search": "product manager", "location": "Bengaluru", "remote": "remote", "salary_min": "20"}}"""
+
+            response = ollama_client.chat(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                options={"temperature": 0.1},
+            )
+            content = response["message"]["content"].strip()
+
+            # Extract JSON from response
+            json_match = re.search(r'\{[^{}]*\}', content)
+            if json_match:
+                filters = json.loads(json_match.group())
+                # Sanitize: only keep known keys with non-empty string values
+                valid_keys = {
+                    "search", "location", "remote", "salary_min", "salary_max",
+                    "experience", "company_type", "sort", "portal", "applied",
+                    "min_score",
+                }
+                filters = {
+                    k: str(v) for k, v in filters.items()
+                    if k in valid_keys and v is not None and str(v).strip()
+                }
+                logger.info("NLP query parsed via Ollama: %s → %s", text, filters)
+                return filters
+
+            logger.warning("Ollama NLP parse returned non-JSON, falling back to regex")
+        except ImportError:
+            logger.info("ollama package not installed, using regex fallback for NLP")
+        except ConnectionError:
+            logger.info("Ollama not running, using regex fallback for NLP")
+        except Exception as e:
+            logger.warning("Ollama NLP parse failed: %s, using regex fallback", e)
+
+    # Regex fallback
+    filters = _regex_parse_nlp_query(text)
+    logger.info("NLP query parsed via regex: %s → %s", text, filters)
+    return filters

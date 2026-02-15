@@ -22,6 +22,13 @@ import webbrowser
 from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 
+# Load .env before anything else reads os.environ
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+except ImportError:
+    pass
+
 # Project modules
 from database import (
     init_db,
@@ -109,6 +116,11 @@ DEFAULT_PREFS = {
     "job_titles": ["Product Manager", "PM", "Associate PM", "Product Lead"],
     "locations": ["Remote", "Bangalore", "Delhi", "Mumbai", "Pune"],
     "industries": ["Fintech", "SaaS", "AI/ML", "Banking", "E-commerce", "Crypto"],
+    "transferable_skills": [
+        "Stakeholder Management", "Risk Management", "Regulatory Compliance",
+        "Data Analysis", "P&L Ownership", "Process Optimization",
+        "Cross-functional Leadership", "Client Relationship Management",
+    ],
     "top_jobs_per_digest": 5,
     "digest_time": "6:00 AM",
     "email": "",
@@ -117,7 +129,11 @@ DEFAULT_PREFS = {
     "apollo_api_key": "",
     "discord_webhook_url": "",
     "discord_min_score": 65,
+    "discord_bot_token": "",
 }
+
+# Keys that should be stored in .env, not in user_preferences.json
+_CREDENTIAL_KEYS = {"gmail_app_password", "discord_bot_token", "apollo_api_key"}
 
 
 def load_preferences():
@@ -128,8 +144,19 @@ def load_preferences():
 
 
 def save_preferences(prefs):
+    # Strip credential keys when corresponding env vars are set so secrets
+    # stay only in .env and never land in the JSON file.
+    clean = dict(prefs)
+    env_cred_map = {
+        "gmail_app_password": "GMAIL_APP_PASSWORD",
+        "discord_bot_token": "DISCORD_BOT_TOKEN",
+        "apollo_api_key": "APOLLO_API_KEY",
+    }
+    for pref_key, env_key in env_cred_map.items():
+        if os.environ.get(env_key):
+            clean.pop(pref_key, None)
     with open(PREFS_PATH, "w") as f:
-        json.dump(prefs, f, indent=2)
+        json.dump(clean, f, indent=2)
 
 
 def apply_env_overrides(prefs):
@@ -139,6 +166,7 @@ def apply_env_overrides(prefs):
         "GMAIL_APP_PASSWORD": "gmail_app_password",
         "EMAIL_RECIPIENT": "email",
         "DISCORD_WEBHOOK_URL": "discord_webhook_url",
+        "DISCORD_BOT_TOKEN": "discord_bot_token",
         "APOLLO_API_KEY": "apollo_api_key",
     }
     for env_key, pref_key in env_map.items():
