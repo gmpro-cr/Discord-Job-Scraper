@@ -792,6 +792,55 @@ def scraper():
     return render_template("scraper.html")
 
 
+@app.route("/api/jobs/import", methods=["POST"])
+def import_jobs():
+    """Accept scraped jobs from external sources (e.g. GitHub Actions)."""
+    data = request.get_json(silent=True) or {}
+
+    # Validate secret
+    import_secret = os.environ.get("IMPORT_SECRET", "")
+    if not import_secret:
+        return jsonify({"ok": False, "error": "IMPORT_SECRET not configured on server"}), 500
+    if data.get("secret") != import_secret:
+        return jsonify({"ok": False, "error": "Invalid secret"}), 403
+
+    jobs = data.get("jobs")
+    if not jobs or not isinstance(jobs, list):
+        return jsonify({"ok": False, "error": "Missing or invalid 'jobs' array"}), 400
+
+    # Generate job IDs and insert
+    for job in jobs:
+        job["job_id"] = generate_job_id(
+            job.get("portal", "unknown"),
+            job.get("company", ""),
+            job.get("role", ""),
+            job.get("location", ""),
+        )
+    inserted, skipped = insert_jobs_bulk(jobs)
+    logger.info("Import API: inserted=%d, skipped=%d (total submitted=%d)", inserted, skipped, len(jobs))
+
+    # Discord alerts for qualified jobs
+    preferences = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
+    discord_url = preferences.get("discord_webhook_url", "").strip()
+    discord_min = int(preferences.get("discord_min_score", 65))
+    alert_count = 0
+    if discord_url:
+        for job in jobs:
+            if job.get("relevance_score", 0) >= discord_min:
+                try:
+                    send_discord_alert(job, discord_url)
+                    alert_count += 1
+                except Exception as e:
+                    logger.warning("Discord alert failed for %s: %s", job.get("job_id"), e)
+        if alert_count > 0 or inserted > 0:
+            try:
+                send_discord_batch_summary(len(jobs), alert_count, inserted, discord_url)
+            except Exception as e:
+                logger.warning("Discord batch summary failed: %s", e)
+
+    return jsonify({"ok": True, "inserted": inserted, "skipped": skipped, "alerts": alert_count})
+
+
 @app.route("/api/scraper/start", methods=["POST"])
 def start_scraper():
     if _IS_VERCEL:

@@ -1,0 +1,30 @@
+name: Daily Job Scrape
+
+on:
+  schedule:
+    # Daily at 5:30 AM UTC
+    - cron: '30 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run scraper and push to Render
+        env:
+          RENDER_APP_URL: ${{ secrets.RENDER_APP_URL }}
+          IMPORT_SECRET: ${{ secrets.IMPORT_SECRET }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: python scrape_and_push.py

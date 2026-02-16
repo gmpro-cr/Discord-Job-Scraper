@@ -12,6 +12,8 @@ services:
     envVars:
       - key: FLASK_SECRET
         generateValue: true
+      - key: IMPORT_SECRET
+        generateValue: true
       - key: GMAIL_ADDRESS
         sync: false
       - key: GMAIL_APP_PASSWORD
@@ -28,12 +30,3 @@ services:
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
-
-  - type: cron
-    name: job-search-agent-daily-scrape
-    runtime: python
-    plan: starter
-    region: singapore
-    schedule: "30 5 * * *"
-    buildCommand: pip install requests
-    startCommand: python -c "import requests; r = requests.post('https://job-search-agent.onrender.com/api/scraper/start'); print(r.status_code, r.text)"
