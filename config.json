@@ -53,9 +53,9 @@
   },
   "scoring": {
     "min_relevance_score": 65,
-    "ollama_model": "mistral",
+    "ollama_model": "llama3.2:3b",
     "ollama_timeout": 60,
-    "use_ollama": true
+    "use_ollama": false
   },
   "digest": {
     "open_in_browser": true,
