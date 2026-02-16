@@ -75,10 +75,13 @@ def set_cache(url, html):
         f.write(html)
 
 
-def fetch_url(url, config, use_selenium=False, retries=3):
+def fetch_url(url, config, use_selenium=False, retries=3, wait_selector=None):
     """
     Fetch a URL with retry logic and exponential backoff.
     Returns HTML string or None on failure.
+
+    Args:
+        wait_selector: CSS selector to wait for when using Selenium (SPA sites).
     """
     timeout = config.get("scraping", {}).get("portal_timeout", 30)
 
@@ -89,7 +92,7 @@ def fetch_url(url, config, use_selenium=False, retries=3):
         return cached
 
     if use_selenium:
-        return fetch_with_selenium(url, timeout, retries)
+        return fetch_with_selenium(url, timeout, retries, wait_selector=wait_selector)
 
     for attempt in range(1, retries + 1):
         try:
@@ -117,8 +120,15 @@ def fetch_url(url, config, use_selenium=False, retries=3):
     return None
 
 
-def fetch_with_selenium(url, timeout=30, retries=3):
-    """Fetch a JavaScript-heavy page using Selenium with bot-detection evasion."""
+def fetch_with_selenium(url, timeout=30, retries=3, wait_selector=None):
+    """
+    Fetch a JavaScript-heavy page using Selenium with bot-detection evasion.
+
+    Args:
+        wait_selector: CSS selector to wait for (e.g. job card elements).
+            For SPA/Next.js sites, this ensures we don't grab the page before
+            client-side data has loaded into the DOM.
+    """
     for attempt in range(1, retries + 1):
         driver = None
         try:
@@ -163,14 +173,29 @@ def fetch_with_selenium(url, timeout=30, retries=3):
             driver.set_page_load_timeout(timeout)
             driver.get(url)
 
-            # Wait until page source is substantial (JS rendered), up to 10s
-            try:
-                WebDriverWait(driver, 10).until(
-                    lambda d: len(d.page_source) > 5000
-                )
-            except Exception:
-                pass  # Fall through - page may still be usable
-            time.sleep(3)  # Additional settle time
+            if wait_selector:
+                # SPA mode: wait for specific DOM elements to appear
+                try:
+                    WebDriverWait(driver, 20).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, wait_selector))
+                    )
+                    logger.debug("Wait selector '%s' found on %s", wait_selector, url)
+                except Exception:
+                    logger.debug("Wait selector '%s' not found after 20s on %s, scrolling to trigger lazy load", wait_selector, url)
+                    # Scroll down to trigger lazy-loading / intersection observers
+                    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                    time.sleep(3)
+                    driver.execute_script("window.scrollTo(0, 0);")
+                    time.sleep(2)
+            else:
+                # Generic mode: wait for page source to be substantial
+                try:
+                    WebDriverWait(driver, 10).until(
+                        lambda d: len(d.page_source) > 5000
+                    )
+                except Exception:
+                    pass
+                time.sleep(3)
 
             html = driver.page_source
             set_cache(url, html)
@@ -669,6 +694,13 @@ def scrape_naukri(job_titles, locations, config):
     max_pages = portal_config.get("max_pages", 3)
     use_selenium = portal_config.get("use_selenium", True)
 
+    # CSS selectors for Naukri job cards (wait for these in Selenium)
+    card_selector = (
+        "article.jobTuple, div.srp-jobtuple-wrapper, "
+        "div[class*='jobTuple'], div[class*='job-tuple'], "
+        "div[class*='srp-tuple'], div[class*='cust-job-tuple']"
+    )
+
     for title in job_titles:
         for location in locations:
             for page in range(1, max_pages + 1):
@@ -678,7 +710,7 @@ def scrape_naukri(job_titles, locations, config):
 
                 logger.info("Scraping Naukri: %s in %s (page %d)", title, location, page)
 
-                html = fetch_url(url, config, use_selenium=use_selenium)
+                html = fetch_url(url, config, use_selenium=use_selenium, wait_selector=card_selector)
                 if not html:
                     continue
 
@@ -766,6 +798,90 @@ def scrape_naukri(job_titles, locations, config):
     return jobs
 
 
+def _parse_hiringcafe_nextdata(soup, base_url):
+    """Extract jobs from HiringCafe's __NEXT_DATA__ or JSON-LD."""
+    jobs = []
+
+    # Strategy 1: application/ld+json
+    for script in soup.select('script[type="application/ld+json"]'):
+        try:
+            data = json.loads(script.string or "")
+            items = data if isinstance(data, list) else [data]
+            for item in items:
+                if item.get("@type") == "JobPosting" and item.get("title"):
+                    company = (item.get("hiringOrganization") or {}).get("name", "")
+                    loc = ""
+                    jl = item.get("jobLocation")
+                    if isinstance(jl, list) and jl:
+                        loc = jl[0].get("address", {}).get("addressLocality", "")
+                    elif isinstance(jl, dict):
+                        loc = jl.get("address", {}).get("addressLocality", "")
+                    if item["title"] and company:
+                        jobs.append({
+                            "portal": "HiringCafe",
+                            "company": company,
+                            "role": item["title"],
+                            "salary": None,
+                            "salary_currency": "INR",
+                            "location": loc,
+                            "job_description": (item.get("description") or "")[:500],
+                            "apply_url": item.get("url", ""),
+                            "date_posted": item.get("datePosted", ""),
+                        })
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+    if jobs:
+        return jobs
+
+    # Strategy 2: __NEXT_DATA__
+    next_script = soup.select_one('script#__NEXT_DATA__')
+    if next_script:
+        try:
+            next_data = json.loads(next_script.string or "")
+            page_props = next_data.get("props", {}).get("pageProps", {})
+
+            # Walk common keys where job data might live
+            for key in ("jobs", "results", "searchResults", "listings", "data", "items"):
+                raw = page_props.get(key)
+                if not raw:
+                    # Also check one level deeper
+                    for v in page_props.values():
+                        if isinstance(v, dict):
+                            raw = v.get(key)
+                            if raw:
+                                break
+                if not raw:
+                    continue
+                items = raw if isinstance(raw, list) else raw.get("jobs", raw.get("data", raw.get("results", [])))
+                if not isinstance(items, list):
+                    continue
+                for item in items:
+                    role = item.get("title") or item.get("jobTitle") or item.get("name") or item.get("position") or ""
+                    company = item.get("company") or item.get("companyName") or item.get("company_name") or ""
+                    if isinstance(company, dict):
+                        company = company.get("name", "")
+                    if role and company:
+                        link = item.get("url") or item.get("apply_url") or item.get("slug", "")
+                        if link and not link.startswith("http"):
+                            link = f"{base_url}/{link.lstrip('/')}"
+                        jobs.append({
+                            "portal": "HiringCafe",
+                            "company": company,
+                            "role": role,
+                            "salary": item.get("salary") or item.get("compensation"),
+                            "salary_currency": "INR",
+                            "location": item.get("location") or item.get("city") or "",
+                            "job_description": (item.get("description") or item.get("snippet") or "")[:500],
+                            "apply_url": link,
+                            "date_posted": item.get("datePosted") or item.get("created_at") or "",
+                        })
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            pass
+
+    return jobs
+
+
 def scrape_hiringcafe(job_titles, locations, config):
     """Scrape HiringCafe (startup hiring platform)."""
     portal_config = config.get("portals", {}).get("hiringcafe", {})
@@ -776,25 +892,36 @@ def scrape_hiringcafe(job_titles, locations, config):
     jobs = []
     base_url = portal_config.get("base_url", "https://hiring.cafe")
     max_pages = portal_config.get("max_pages", 2)
+    use_selenium = portal_config.get("use_selenium", True)
+
+    # CSS selectors for job cards on HiringCafe (used for both Selenium wait and parsing)
+    card_selector = (
+        "div[class*='job-card'], div[class*='job-listing'], "
+        "div[class*='JobCard'], div[class*='listing-card'], "
+        "article[class*='job'], a[class*='job']"
+    )
 
     for title in job_titles:
         url = f"{base_url}/search?q={quote_plus(title)}"
         logger.info("Scraping HiringCafe: %s", title)
 
-        html = fetch_url(url, config)
+        html = fetch_url(url, config, use_selenium=use_selenium, wait_selector=card_selector)
         if not html:
             continue
 
         try:
             soup = BeautifulSoup(html, "lxml")
 
-            cards = soup.select(
-                "div.job-card, "
-                "div.job-listing, "
-                "article.job, "
-                "div[class*='job'], "
-                "div[class*='listing']"
-            )
+            # Try structured data first (JSON-LD / __NEXT_DATA__)
+            json_jobs = _parse_hiringcafe_nextdata(soup, base_url)
+            if json_jobs:
+                jobs.extend(json_jobs)
+                logger.info("HiringCafe: extracted %d jobs via JSON from %s", len(json_jobs), url)
+                random_delay(config)
+                continue
+
+            # Fallback: CSS card parsing on rendered DOM
+            cards = soup.select(card_selector)
 
             for card in cards:
                 try:
@@ -993,12 +1120,20 @@ def scrape_iimjobs(job_titles, locations, config):
     max_pages = portal_config.get("max_pages", 2)
     use_selenium = portal_config.get("use_selenium", True)
 
+    # CSS selectors for IIMJobs job cards (wait for these in Selenium)
+    card_selector = (
+        "div[class*='job-card'], div[class*='jobCard'], "
+        "div[class*='job-listing'], div[class*='jobTuple'], "
+        "a[class*='job-card'], a[class*='jobCard'], "
+        "li[class*='job'], div[class*='listing']"
+    )
+
     for title in job_titles:
         for location in locations:
             url = f"{base_url}/search?q={quote_plus(title)}&l={quote_plus(location)}"
             logger.info("Scraping IIMJobs: %s in %s", title, location)
 
-            html = fetch_url(url, config, use_selenium=use_selenium)
+            html = fetch_url(url, config, use_selenium=use_selenium, wait_selector=card_selector)
             if not html:
                 continue
 
