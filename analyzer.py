@@ -4,6 +4,7 @@ Scores each job 0-100 based on relevance to user preferences.
 """
 
 import logging
+import os
 import re
 import json
 
@@ -821,28 +822,13 @@ def _regex_parse_nlp_query(text):
     return filters
 
 
-def parse_nlp_query(text, config=None):
-    """
-    Parse a natural language job search query into structured filters.
-    Uses Ollama when available, falls back to regex parsing.
+_NLP_VALID_KEYS = {
+    "search", "location", "remote", "salary_min", "salary_max",
+    "experience", "company_type", "sort", "portal", "applied",
+    "min_score",
+}
 
-    Returns dict with keys: search, location, remote, min_score, experience,
-    salary_min, salary_max, company_type, sort, portal, applied
-    """
-    if not text or not text.strip():
-        return {}
-
-    config = config or {}
-    use_ollama = config.get("scoring", {}).get("use_ollama", True)
-
-    if use_ollama:
-        try:
-            import ollama as ollama_client
-
-            model = config.get("scoring", {}).get("ollama_model", "mistral")
-            timeout = config.get("scoring", {}).get("ollama_timeout", 60)
-
-            prompt = f"""Extract structured job search filters from this natural language query.
+_NLP_EXTRACTION_PROMPT = """Extract structured job search filters from this natural language query.
 
 Query: "{text}"
 
@@ -862,6 +848,88 @@ Only include fields that are clearly mentioned or strongly implied. Do not guess
 Respond ONLY with valid JSON. Example:
 {{"search": "product manager", "location": "Bengaluru", "remote": "remote", "salary_min": "20"}}"""
 
+
+def _sanitize_nlp_filters(raw_filters):
+    """Keep only known keys with non-empty string values."""
+    return {
+        k: str(v) for k, v in raw_filters.items()
+        if k in _NLP_VALID_KEYS and v is not None and str(v).strip()
+    }
+
+
+def _openrouter_parse_nlp_query(text):
+    """
+    Use OpenRouter (meta-llama/llama-3.1-8b-instruct:free) to parse a
+    natural language query into structured job search filters.
+    Returns a dict of filters, or None if OpenRouter is unavailable/fails.
+    """
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        return None
+
+    try:
+        from openai import OpenAI
+    except ImportError:
+        logger.info("openai package not installed, skipping OpenRouter NLP")
+        return None
+
+    try:
+        client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
+        )
+
+        prompt = _NLP_EXTRACTION_PROMPT.format(text=text)
+        response = client.chat.completions.create(
+            model="google/gemma-3-27b-it:free",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+        )
+        content = response.choices[0].message.content.strip()
+
+        # Extract JSON from response
+        json_match = re.search(r'\{[^{}]*\}', content)
+        if json_match:
+            filters = json.loads(json_match.group())
+            filters = _sanitize_nlp_filters(filters)
+            logger.info("NLP query parsed via OpenRouter: %s → %s", text, filters)
+            return filters
+
+        logger.warning("OpenRouter NLP parse returned non-JSON: %s", content[:200])
+        return None
+    except Exception as e:
+        logger.warning("OpenRouter NLP parse failed: %s", e)
+        return None
+
+
+def parse_nlp_query(text, config=None):
+    """
+    Parse a natural language job search query into structured filters.
+    Priority: OpenRouter → Ollama → regex.
+
+    Returns dict with keys: search, location, remote, min_score, experience,
+    salary_min, salary_max, company_type, sort, portal, applied
+    """
+    if not text or not text.strip():
+        return {}
+
+    config = config or {}
+
+    # --- Try OpenRouter first ---
+    openrouter_result = _openrouter_parse_nlp_query(text)
+    if openrouter_result is not None:
+        return openrouter_result
+
+    # --- Try Ollama ---
+    use_ollama = config.get("scoring", {}).get("use_ollama", True)
+    if use_ollama:
+        try:
+            import ollama as ollama_client
+
+            model = config.get("scoring", {}).get("ollama_model", "mistral")
+
+            prompt = _NLP_EXTRACTION_PROMPT.format(text=text)
+
             response = ollama_client.chat(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
@@ -873,16 +941,7 @@ Respond ONLY with valid JSON. Example:
             json_match = re.search(r'\{[^{}]*\}', content)
             if json_match:
                 filters = json.loads(json_match.group())
-                # Sanitize: only keep known keys with non-empty string values
-                valid_keys = {
-                    "search", "location", "remote", "salary_min", "salary_max",
-                    "experience", "company_type", "sort", "portal", "applied",
-                    "min_score",
-                }
-                filters = {
-                    k: str(v) for k, v in filters.items()
-                    if k in valid_keys and v is not None and str(v).strip()
-                }
+                filters = _sanitize_nlp_filters(filters)
                 logger.info("NLP query parsed via Ollama: %s → %s", text, filters)
                 return filters
 
@@ -894,7 +953,7 @@ Respond ONLY with valid JSON. Example:
         except Exception as e:
             logger.warning("Ollama NLP parse failed: %s, using regex fallback", e)
 
-    # Regex fallback
+    # --- Regex fallback ---
     filters = _regex_parse_nlp_query(text)
     logger.info("NLP query parsed via regex: %s → %s", text, filters)
     return filters

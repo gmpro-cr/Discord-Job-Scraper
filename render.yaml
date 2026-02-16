@@ -26,6 +26,8 @@ services:
         value: "65"
       - key: APOLLO_API_KEY
         sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
 
   - type: cron
     name: job-search-agent-daily-scrape
