@@ -10,6 +10,7 @@ Runs in a background thread alongside the Flask app.
 import asyncio
 import logging
 import re
+import time
 import threading
 
 import discord
@@ -302,15 +303,29 @@ def start_discord_bot(token):
         return
 
     def _run():
-        client = _create_bot()
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            loop.run_until_complete(client.start(token))
-        except Exception:
-            logger.exception("Discord bot crashed")
-        finally:
-            loop.close()
+        max_retries = 5
+        for attempt in range(max_retries):
+            client = _create_bot()
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(client.start(token))
+                break  # Clean shutdown
+            except discord.errors.HTTPException as e:
+                if e.status == 429:
+                    wait = min(30 * (attempt + 1), 120)
+                    logger.warning("Discord rate limited (attempt %d/%d), retrying in %ds", attempt + 1, max_retries, wait)
+                    loop.close()
+                    time.sleep(wait)
+                    continue
+                logger.exception("Discord bot crashed with HTTP error")
+                break
+            except Exception:
+                logger.exception("Discord bot crashed")
+                break
+            finally:
+                if not loop.is_closed():
+                    loop.close()
 
     t = threading.Thread(target=_run, daemon=True, name="discord-bot")
     t.start()
