@@ -303,8 +303,9 @@ def start_discord_bot(token):
         return
 
     def _run():
-        max_retries = 5
-        for attempt in range(max_retries):
+        attempt = 0
+        while True:
+            attempt += 1
             client = _create_bot()
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -313,16 +314,18 @@ def start_discord_bot(token):
                 break  # Clean shutdown
             except discord.errors.HTTPException as e:
                 if e.status == 429:
-                    wait = min(30 * (attempt + 1), 120)
-                    logger.warning("Discord rate limited (attempt %d/%d), retrying in %ds", attempt + 1, max_retries, wait)
+                    wait = min(60 * attempt, 600)  # 60s, 120s, ... up to 10min
+                    logger.warning("Discord rate limited (attempt %d), retrying in %ds", attempt, wait)
                     loop.close()
                     time.sleep(wait)
                     continue
                 logger.exception("Discord bot crashed with HTTP error")
                 break
             except Exception:
-                logger.exception("Discord bot crashed")
-                break
+                logger.exception("Discord bot crashed, restarting in 30s")
+                loop.close()
+                time.sleep(30)
+                continue
             finally:
                 if not loop.is_closed():
                     loop.close()
