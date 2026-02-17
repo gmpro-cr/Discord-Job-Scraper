@@ -101,24 +101,44 @@ def main():
                 clean[key] = job[key]
         payload_jobs.append(clean)
 
+    # --- Push in batches (Render free tier can't handle 1000+ jobs at once) ---
     endpoint = f"{render_url}/api/jobs/import"
-    payload = {"secret": import_secret, "jobs": payload_jobs}
-    payload_size = len(json.dumps(payload))
-    logger.info("Pushing %d jobs to %s (payload: %.1f KB)...", len(payload_jobs), endpoint, payload_size / 1024)
+    batch_size = 100
+    total_inserted = 0
+    total_skipped = 0
+    total_alerts = 0
 
-    try:
-        resp = requests.post(endpoint, json=payload, timeout=120)
-        resp.raise_for_status()
-        result = resp.json()
-        logger.info(
-            "Import successful: inserted=%s, skipped=%s, alerts=%s",
-            result.get("inserted"), result.get("skipped"), result.get("alerts"),
-        )
-    except requests.RequestException as e:
-        logger.error("Failed to push jobs: %s", e)
-        if hasattr(e, "response") and e.response is not None:
-            logger.error("Response body: %s", e.response.text[:500])
-        sys.exit(1)
+    for i in range(0, len(payload_jobs), batch_size):
+        batch = payload_jobs[i:i + batch_size]
+        batch_num = i // batch_size + 1
+        total_batches = (len(payload_jobs) + batch_size - 1) // batch_size
+        logger.info("Pushing batch %d/%d (%d jobs)...", batch_num, total_batches, len(batch))
+
+        try:
+            resp = requests.post(
+                endpoint,
+                json={"secret": import_secret, "jobs": batch},
+                timeout=120,
+            )
+            resp.raise_for_status()
+            result = resp.json()
+            total_inserted += result.get("inserted", 0)
+            total_skipped += result.get("skipped", 0)
+            total_alerts += result.get("alerts", 0)
+            logger.info(
+                "  Batch %d: inserted=%s, skipped=%s",
+                batch_num, result.get("inserted"), result.get("skipped"),
+            )
+        except requests.RequestException as e:
+            logger.error("Batch %d failed: %s", batch_num, e)
+            if hasattr(e, "response") and e.response is not None:
+                logger.error("Response body: %s", e.response.text[:500])
+            sys.exit(1)
+
+    logger.info(
+        "All batches complete: inserted=%d, skipped=%d, alerts=%d",
+        total_inserted, total_skipped, total_alerts,
+    )
 
 
 if __name__ == "__main__":
