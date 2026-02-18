@@ -957,3 +957,194 @@ def parse_nlp_query(text, config=None):
     filters = _regex_parse_nlp_query(text)
     logger.info("NLP query parsed via regex: %s → %s", text, filters)
     return filters
+
+
+# =============================================================================
+# CV Upload and Matching
+# =============================================================================
+
+from datetime import datetime as _datetime
+
+CV_DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cv_data.json")
+
+# Extended skill list specifically for CV scanning (broader than JD extraction)
+_CV_SKILL_PATTERNS = [
+    r"SQL", r"Python", r"Excel", r"Tableau", r"Power BI", r"Jira", r"Confluence",
+    r"Figma", r"Analytics", r"A/B [Tt]esting", r"Data [Aa]nalysis", r"Data Science",
+    r"Product [Ss]trategy", r"Roadmap", r"Agile", r"Scrum", r"Kanban",
+    r"Stakeholder [Mm]anagement", r"User [Rr]esearch", r"UX", r"UI",
+    r"API", r"REST", r"Microservices", r"AWS", r"GCP", r"Azure", r"Cloud",
+    r"Machine Learning", r"AI", r"NLP", r"Deep Learning",
+    r"React", r"JavaScript", r"TypeScript", r"Node\.?[Jj][Ss]", r"Java",
+    r"Go", r"Kubernetes", r"Docker", r"CI/CD", r"Git", r"GitHub",
+    r"MongoDB", r"PostgreSQL", r"Redis", r"Kafka", r"Spark", r"Hadoop",
+    r"Fintech", r"Payments", r"UPI", r"Lending", r"Credit", r"Banking",
+    r"Risk [Mm]anagement", r"Compliance", r"P&L", r"Revenue",
+    r"Cross[\s-]functional", r"Leadership", r"Mentoring", r"Strategy",
+    r"OKR", r"KPI", r"Metrics", r"Growth", r"Retention", r"Conversion",
+    r"B2B", r"B2C", r"SaaS", r"Mobile", r"iOS", r"Android",
+]
+
+
+def parse_cv_text(text):
+    """
+    Parse raw CV text and extract structured data.
+
+    Args:
+        text: Raw text content of the CV
+
+    Returns:
+        dict with keys: skills (list), raw_text (str), uploaded_at (str)
+    """
+    if not text or not text.strip():
+        return {"skills": [], "raw_text": text or "", "uploaded_at": _datetime.now().isoformat()}
+
+    found_skills = []
+    for pattern in _CV_SKILL_PATTERNS:
+        if re.search(pattern, text, re.IGNORECASE):
+            clean = re.sub(r'[\[\]\\]', '', pattern).replace(r"\.", ".").replace(r"\.?", "").strip()
+            # Use a cleaner display name
+            display = re.sub(r'\([^)]+\)', '', clean).strip()
+            if display and display not in found_skills:
+                found_skills.append(display)
+
+    return {
+        "skills": found_skills,
+        "raw_text": text,
+        "uploaded_at": _datetime.now().isoformat(),
+    }
+
+
+def load_cv_data():
+    """Load stored CV data from cv_data.json. Returns None if not uploaded yet."""
+    if not os.path.exists(CV_DATA_PATH):
+        return None
+    try:
+        with open(CV_DATA_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def save_cv_data(cv_data):
+    """Save CV data dict to cv_data.json."""
+    with open(CV_DATA_PATH, "w", encoding="utf-8") as f:
+        json.dump(cv_data, f, indent=2)
+
+
+def cv_score(job, cv_data):
+    """
+    Score a job 0-100 based on how well the applicant's CV matches the JD.
+
+    Args:
+        job: dict with role, job_description, location fields
+        cv_data: dict from parse_cv_text(), or None if no CV uploaded
+
+    Returns:
+        int 0-100
+    """
+    if not cv_data:
+        return 0
+
+    cv_skills_lower = {s.lower() for s in cv_data.get("skills", [])}
+    if not cv_skills_lower:
+        return 0
+
+    jd_text = " ".join([job.get("role", ""), job.get("job_description", "")])
+    jd_skills = extract_skills(jd_text, max_skills=20)
+
+    if not jd_skills:
+        # If no specific skills extracted from JD, fall back to keyword overlap
+        jd_words = set(re.findall(r'\b\w{4,}\b', jd_text.lower()))
+        cv_words = set(re.findall(r'\b\w{4,}\b', cv_data.get("raw_text", "").lower()))
+        common = jd_words & cv_words
+        if not jd_words:
+            return 0
+        return min(int(len(common) / len(jd_words) * 100), 100)
+
+    jd_skills_lower = [s.lower() for s in jd_skills]
+    matched = [s for s in jd_skills_lower if s in cv_skills_lower]
+    score = int(len(matched) / len(jd_skills_lower) * 100)
+    return min(score, 100)
+
+
+# Curated tips for common missing skills
+SKILL_TIPS = {
+    "python": "Take a free Python for Data Analysis course on Kaggle (2-3 days). Focus on pandas.",
+    "sql": "You likely have SQL from banking work — emphasize this explicitly in your CV.",
+    "figma": "Complete Figma basics on YouTube (1 day). Add 'basic Figma' to your skills section.",
+    "kafka": "Frame your banking messaging/event systems experience as equivalent. Add a note in your cover letter.",
+    "kubernetes": "Note your exposure to cloud infrastructure from banking IT projects.",
+    "docker": "Mention any containerization or DevOps exposure. A 2-hour intro tutorial covers basics.",
+    "machine learning": "Highlight any analytics or predictive modelling work from banking.",
+    "react": "Note your familiarity with web product decisions if you've worked with frontend teams.",
+    "javascript": "As a PM, familiarity (not proficiency) is sufficient. Mention product decisions around JS-heavy features.",
+    "aws": "Highlight any cloud migration or AWS-based projects from your banking background.",
+    "a/b testing": "Emphasize any data-driven experiments or hypothesis testing from your banking role.",
+    "user research": "Frame any customer interviews, NPS analysis, or journey mapping work you've done.",
+    "agile": "If you have this, make it explicit with specific examples of sprints, stand-ups, retrospectives.",
+    "data analysis": "Quantify your analytics work — rows analyzed, reports built, decisions influenced.",
+    "tableau": "Free Tableau Public is available. Even basic dashboards count — add to skills.",
+    "jira": "Mention any project tracking tools used in banking (Jira, ServiceNow, etc.).",
+}
+
+
+def compute_gap_analysis(job, cv_data):
+    """
+    Compute the gap between a job's requirements and the applicant's CV.
+
+    Args:
+        job: dict with role, job_description fields
+        cv_data: dict from parse_cv_text(), or None
+
+    Returns:
+        dict: {cv_score, matched_skills, missing_skills, action_steps}
+    """
+    if not cv_data:
+        return {
+            "cv_score": 0,
+            "matched_skills": [],
+            "missing_skills": [],
+            "action_steps": ["Upload your CV on the CV page to see personalized gap analysis."],
+        }
+
+    cv_skills_lower = {s.lower(): s for s in cv_data.get("skills", [])}
+    jd_text = " ".join([job.get("role", ""), job.get("job_description", "")])
+    jd_skills = extract_skills(jd_text, max_skills=20)
+
+    if not jd_skills:
+        return {
+            "cv_score": cv_score(job, cv_data),
+            "matched_skills": [],
+            "missing_skills": [],
+            "action_steps": ["No specific skills detected in job description."],
+        }
+
+    matched = []
+    missing = []
+    for skill in jd_skills:
+        if skill.lower() in cv_skills_lower:
+            matched.append(skill)
+        else:
+            missing.append(skill)
+
+    score = int(len(matched) / len(jd_skills) * 100) if jd_skills else 0
+
+    # Generate action steps for top 3 missing skills
+    action_steps = []
+    for skill in missing[:3]:
+        tip = SKILL_TIPS.get(skill.lower())
+        if tip:
+            action_steps.append(f"**{skill}**: {tip}")
+        else:
+            action_steps.append(f"**{skill}**: Research this skill and add relevant experience from your background.")
+
+    if not missing:
+        action_steps = ["Great match! Highlight your strongest matching skills in the cover letter."]
+
+    return {
+        "cv_score": min(score, 100),
+        "matched_skills": matched,
+        "missing_skills": missing,
+        "action_steps": action_steps,
+    }
