@@ -37,12 +37,12 @@ from database import (
     get_application_activity, get_recommended_actions,
 )
 from scrapers import scrape_all_portals
-from analyzer import analyze_jobs, generate_tailored_points, parse_nlp_query
+from analyzer import analyze_jobs, generate_tailored_points, parse_nlp_query, parse_cv_text, cv_score, compute_gap_analysis, load_cv_data, save_cv_data, CV_DATA_PATH
 from digest_generator import generate_digest, get_latest_digest, DIGEST_DIR
 from email_notifier import send_job_email
-from apollo_enricher import enrich_jobs_with_contacts
-from discord_notifier import send_discord_alert, send_discord_batch_summary
-from discord_bot import start_discord_bot
+from contact_scraper import enrich_jobs_with_contacts
+from telegram_notifier import send_telegram_alert, send_telegram_batch_summary
+from telegram_bot import start_telegram_bot
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -249,20 +249,21 @@ def _run_scraper_pipeline():
             scraper_status["inserted"] = inserted
             scraper_status["skipped"] = skipped
 
-        # Phase 3.5: Discord alerts
-        discord_url = preferences.get("discord_webhook_url", "").strip()
-        discord_min = int(preferences.get("discord_min_score", 65))
-        if discord_url:
+        # Phase 3.5: Telegram alerts
+        tg_token = preferences.get("telegram_bot_token", "").strip()
+        tg_chat = preferences.get("telegram_chat_id", "").strip()
+        tg_min = int(preferences.get("telegram_min_score", 65))
+        if tg_token and tg_chat:
             with scraper_lock:
-                scraper_status["phase"] = "discord_alerts"
+                scraper_status["phase"] = "telegram_alerts"
             alert_count = 0
             for job in qualified_jobs:
-                if job.get("relevance_score", 0) >= discord_min:
-                    send_discord_alert(job, discord_url)
+                if job.get("relevance_score", 0) >= tg_min:
+                    send_telegram_alert(job, tg_token, tg_chat)
                     alert_count += 1
             if alert_count > 0 or inserted > 0:
-                send_discord_batch_summary(len(all_jobs), len(qualified_jobs), inserted, discord_url)
-            logger.info("Sent %d Discord alerts", alert_count)
+                send_telegram_batch_summary(len(all_jobs), len(qualified_jobs), inserted, tg_token, tg_chat)
+            logger.info("Sent %d Telegram alerts", alert_count)
 
         # Phase 3.6: Apollo contact enrichment
         apollo_key = preferences.get("apollo_api_key", "").strip()
@@ -378,15 +379,16 @@ def _run_live_search(query, location):
             live_search_status["skipped"] = skipped
             live_search_status["result_job_ids"] = result_ids
 
-        # Phase 3.5: Discord alerts
-        discord_url = preferences.get("discord_webhook_url", "").strip()
-        discord_min = int(preferences.get("discord_min_score", 65))
-        if discord_url:
+        # Phase 3.5: Telegram alerts
+        tg_token = preferences.get("telegram_bot_token", "").strip()
+        tg_chat = preferences.get("telegram_chat_id", "").strip()
+        tg_min = int(preferences.get("telegram_min_score", 65))
+        if tg_token and tg_chat:
             with live_search_lock:
-                live_search_status["phase"] = "discord_alerts"
+                live_search_status["phase"] = "telegram_alerts"
             for job in qualified_jobs:
-                if job.get("relevance_score", 0) >= discord_min:
-                    send_discord_alert(job, discord_url)
+                if job.get("relevance_score", 0) >= tg_min:
+                    send_telegram_alert(job, tg_token, tg_chat)
 
         # Phase 4: Apollo enrichment
         apollo_key = preferences.get("apollo_api_key", "").strip()
@@ -409,7 +411,7 @@ def _run_live_search(query, location):
 
 
 # ---------------------------------------------------------------------------
-# Scheduler & Discord bot startup guards
+# Scheduler & Telegram bot startup guards
 # ---------------------------------------------------------------------------
 # Skip on Vercel (serverless – no persistent processes).
 # Flask dev mode: only start in the reloader child (WERKZEUG_RUN_MAIN=true).
@@ -439,11 +441,11 @@ def _should_start_background_tasks():
 if _should_start_background_tasks():
     setup_background_scheduler()
 
-    # Start Discord bot if token is configured
+    # Start Telegram bot if token is configured
     _bot_prefs = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
-    _bot_token = _bot_prefs.get("discord_bot_token", "").strip()
+    _bot_token = _bot_prefs.get("telegram_bot_token", "").strip()
     if _bot_token:
-        start_discord_bot(_bot_token)
+        start_telegram_bot(_bot_token)
 
 # ---------------------------------------------------------------------------
 # Routes
@@ -752,9 +754,9 @@ def preferences():
             "gmail_address": request.form.get("gmail_address", "").strip(),
             "gmail_app_password": request.form.get("gmail_app_password", "").strip(),
             "apollo_api_key": request.form.get("apollo_api_key", "").strip(),
-            "discord_webhook_url": request.form.get("discord_webhook_url", "").strip(),
-            "discord_min_score": max(0, min(100, int(request.form.get("discord_min_score", "65")))),
-            "discord_bot_token": request.form.get("discord_bot_token", "").strip(),
+            "telegram_bot_token": request.form.get("telegram_bot_token", "").strip(),
+            "telegram_chat_id": request.form.get("telegram_chat_id", "").strip(),
+            "telegram_min_score": max(0, min(100, int(request.form.get("telegram_min_score", "65")))),
         }
         save_preferences(prefs)
         flash("Preferences saved successfully!", "success")
@@ -764,7 +766,7 @@ def preferences():
     # Tell the template which credential fields are set via env vars
     env_credentials = {
         "gmail_app_password": bool(os.environ.get("GMAIL_APP_PASSWORD")),
-        "discord_bot_token": bool(os.environ.get("DISCORD_BOT_TOKEN")),
+        "telegram_bot_token": bool(os.environ.get("TELEGRAM_BOT_TOKEN")),
         "apollo_api_key": bool(os.environ.get("APOLLO_API_KEY")),
     }
     return render_template("preferences.html", prefs=prefs, config=config, env_credentials=env_credentials)
@@ -819,24 +821,25 @@ def import_jobs():
     inserted, skipped = insert_jobs_bulk(jobs)
     logger.info("Import API: inserted=%d, skipped=%d (total submitted=%d)", inserted, skipped, len(jobs))
 
-    # Discord alerts for qualified jobs
+    # Telegram alerts for qualified jobs
     preferences = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
-    discord_url = preferences.get("discord_webhook_url", "").strip()
-    discord_min = int(preferences.get("discord_min_score", 65))
+    tg_token = preferences.get("telegram_bot_token", "").strip()
+    tg_chat = preferences.get("telegram_chat_id", "").strip()
+    tg_min = int(preferences.get("telegram_min_score", 65))
     alert_count = 0
-    if discord_url:
+    if tg_token and tg_chat:
         for job in jobs:
-            if job.get("relevance_score", 0) >= discord_min:
+            if job.get("relevance_score", 0) >= tg_min:
                 try:
-                    send_discord_alert(job, discord_url)
+                    send_telegram_alert(job, tg_token, tg_chat)
                     alert_count += 1
                 except Exception as e:
-                    logger.warning("Discord alert failed for %s: %s", job.get("job_id"), e)
+                    logger.warning("Telegram alert failed for %s: %s", job.get("job_id"), e)
         if alert_count > 0 or inserted > 0:
             try:
-                send_discord_batch_summary(len(jobs), alert_count, inserted, discord_url)
+                send_telegram_batch_summary(len(jobs), alert_count, inserted, tg_token, tg_chat)
             except Exception as e:
-                logger.warning("Discord batch summary failed: %s", e)
+                logger.warning("Telegram batch summary failed: %s", e)
 
     return jsonify({"ok": True, "inserted": inserted, "skipped": skipped, "alerts": alert_count})
 
@@ -955,6 +958,112 @@ def digests():
 @app.route("/digests/<filename>")
 def serve_digest(filename):
     return send_from_directory(DIGEST_DIR, filename)
+
+
+# ---------------------------------------------------------------------------
+# CV Management Routes
+# ---------------------------------------------------------------------------
+
+@app.route("/cv")
+def cv_page():
+    cv_data = load_cv_data()
+    return render_template("cv.html", cv_data=cv_data)
+
+
+@app.route("/api/cv/upload", methods=["POST"])
+def upload_cv():
+    """Accept a CV file upload, parse it, and store cv_data.json."""
+    if "cv_file" not in request.files:
+        return jsonify({"ok": False, "error": "No file provided"}), 400
+
+    f = request.files["cv_file"]
+    filename = f.filename or ""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    text = ""
+    if ext == "pdf":
+        try:
+            import pdfplumber, io
+            with pdfplumber.open(io.BytesIO(f.read())) as pdf:
+                text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+        except Exception as e:
+            return jsonify({"ok": False, "error": f"PDF parsing failed: {e}"}), 400
+    elif ext == "docx":
+        try:
+            import docx, io
+            doc = docx.Document(io.BytesIO(f.read()))
+            text = "\n".join(p.text for p in doc.paragraphs)
+        except Exception as e:
+            return jsonify({"ok": False, "error": f"DOCX parsing failed: {e}"}), 400
+    elif ext in ("txt", ""):
+        text = f.read().decode("utf-8", errors="ignore")
+    else:
+        return jsonify({"ok": False, "error": f"Unsupported file type: {ext}. Use PDF, DOCX, or TXT."}), 400
+
+    if not text.strip():
+        return jsonify({"ok": False, "error": "Could not extract text from the file"}), 400
+
+    cv_data = parse_cv_text(text)
+    save_cv_data(cv_data)
+    logger.info("CV uploaded: %d skills detected", len(cv_data["skills"]))
+
+    return jsonify({
+        "ok": True,
+        "skills_count": len(cv_data["skills"]),
+        "skills": cv_data["skills"],
+    })
+
+
+@app.route("/api/cv/rescore", methods=["POST"])
+def rescore_jobs():
+    """Re-score all jobs in the DB against the uploaded CV."""
+    cv_data = load_cv_data()
+    if not cv_data:
+        return jsonify({"ok": False, "error": "No CV uploaded yet"}), 400
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT job_id, role, job_description FROM job_listings")
+    jobs = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+
+    if not jobs:
+        return jsonify({"ok": True, "updated": 0, "message": "No jobs in database"})
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    updated = 0
+    for job in jobs:
+        score = cv_score(job, cv_data)
+        cursor.execute(
+            "UPDATE job_listings SET cv_score = ? WHERE job_id = ?",
+            (score, job["job_id"]),
+        )
+        updated += 1
+    conn.commit()
+    conn.close()
+
+    logger.info("Re-scored %d jobs against CV", updated)
+    return jsonify({"ok": True, "updated": updated})
+
+
+@app.route("/api/jobs/<job_id>/gap-analysis")
+def gap_analysis(job_id):
+    """Return gap analysis for a specific job against the uploaded CV."""
+    cv_data = load_cv_data()
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM job_listings WHERE job_id = ?", (job_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({"ok": False, "error": "Job not found"}), 404
+
+    job = dict(row)
+    result = compute_gap_analysis(job, cv_data)
+    return jsonify({"ok": True, **result})
 
 
 # ---------------------------------------------------------------------------
