@@ -99,6 +99,13 @@ def init_db():
         except sqlite3.OperationalError:
             pass
 
+    # CV scoring column
+    for col in ["cv_score INTEGER DEFAULT 0"]:
+        try:
+            cursor.execute(f"ALTER TABLE job_listings ADD COLUMN {col}")
+        except sqlite3.OperationalError:
+            pass
+
     conn.commit()
     conn.close()
     logger.info("Database initialized at %s", DB_PATH)
@@ -161,9 +168,10 @@ def insert_job(job):
                  job_description, apply_url, relevance_score, remote_status,
                  company_type, date_found, date_posted, applied_status,
                  experience_min, experience_max, salary_min, salary_max,
-                 company_size, company_funding_stage, company_glassdoor_rating)
+                 company_size, company_funding_stage, company_glassdoor_rating,
+                 cv_score)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0,
-                    ?, ?, ?, ?, ?, ?, ?)
+                    ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 job_id,
@@ -187,6 +195,7 @@ def insert_job(job):
                 job.get("company_size"),
                 job.get("company_funding_stage"),
                 job.get("company_glassdoor_rating"),
+                job.get("cv_score", 0),
             ),
         )
         conn.commit()
