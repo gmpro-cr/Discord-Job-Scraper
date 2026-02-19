@@ -5,89 +5,155 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Job Search Agent{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50:'#eef2ff', 100:'#e0e7ff', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca' }
+          }
+        }
+      }
+    }
+  </script>
   <style>
-    [x-cloak] { display: none !important; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; }
+    .sidebar-link { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.75rem; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500; color: #4b5563; transition: background-color 0.15s, color 0.15s; text-decoration: none; }
+    .sidebar-link:hover { background-color: #f3f4f6; color: #111827; }
+    .sidebar-link.active { background-color: #eef2ff; color: #4338ca; font-weight: 600; }
+    .stat-card { background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1.25rem; }
   </style>
   {% block head %}{% endblock %}
 </head>
-<body class="bg-gray-50 min-h-screen">
-  <!-- Navigation -->
-  <nav class="bg-indigo-700 shadow-lg">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex items-center justify-between h-16">
-        <div class="flex items-center space-x-2">
-          <span class="text-white font-bold text-xl tracking-tight">Job Search Agent</span>
+<body class="bg-gray-50 min-h-screen" style="display:flex">
+
+  <!-- Sidebar (desktop) -->
+  <aside style="display:none" class="md:flex flex-col w-56 bg-white border-r border-gray-200 min-h-screen fixed left-0 top-0 z-20 md:display-block">
+    <div class="px-4 py-5 border-b border-gray-100">
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2"/>
+          </svg>
         </div>
-        <div class="hidden md:flex space-x-1">
-          <a href="{{ url_for('dashboard') }}"
-             class="px-3 py-2 rounded-md text-sm font-medium
-                    {% if request.endpoint == 'dashboard' %}bg-indigo-900 text-white{% else %}text-indigo-100 hover:bg-indigo-600{% endif %}">
-            Dashboard
-          </a>
-          <a href="{{ url_for('jobs') }}"
-             class="px-3 py-2 rounded-md text-sm font-medium
-                    {% if request.endpoint == 'jobs' %}bg-indigo-900 text-white{% else %}text-indigo-100 hover:bg-indigo-600{% endif %}">
-            Jobs
-          </a>
-          <a href="{{ url_for('preferences') }}"
-             class="px-3 py-2 rounded-md text-sm font-medium
-                    {% if request.endpoint == 'preferences' %}bg-indigo-900 text-white{% else %}text-indigo-100 hover:bg-indigo-600{% endif %}">
-            Preferences
-          </a>
-          <a href="{{ url_for('scraper') }}"
-             class="px-3 py-2 rounded-md text-sm font-medium
-                    {% if request.endpoint == 'scraper' %}bg-indigo-900 text-white{% else %}text-indigo-100 hover:bg-indigo-600{% endif %}">
-            Run Scraper
-          </a>
-          <a href="{{ url_for('digests') }}"
-             class="px-3 py-2 rounded-md text-sm font-medium
-                    {% if request.endpoint == 'digests' %}bg-indigo-900 text-white{% else %}text-indigo-100 hover:bg-indigo-600{% endif %}">
-            Digests
-          </a>
-        </div>
-        <!-- Mobile menu button -->
-        <div class="md:hidden">
-          <button onclick="document.getElementById('mobile-menu').classList.toggle('hidden')"
-                  class="text-indigo-100 hover:text-white p-2">
-            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-            </svg>
-          </button>
-        </div>
+        <span class="font-semibold text-gray-900 text-sm tracking-tight">Job Agent</span>
       </div>
     </div>
-    <!-- Mobile menu -->
-    <div id="mobile-menu" class="hidden md:hidden border-t border-indigo-600">
-      <div class="px-2 pt-2 pb-3 space-y-1">
-        <a href="{{ url_for('dashboard') }}" class="block px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600">Dashboard</a>
-        <a href="{{ url_for('jobs') }}" class="block px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600">Jobs</a>
-        <a href="{{ url_for('preferences') }}" class="block px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600">Preferences</a>
-        <a href="{{ url_for('scraper') }}" class="block px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600">Run Scraper</a>
-        <a href="{{ url_for('digests') }}" class="block px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-600">Digests</a>
+
+    <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+      <a href="{{ url_for('dashboard') }}"
+         class="sidebar-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+        </svg>
+        Dashboard
+      </a>
+      <a href="{{ url_for('jobs') }}"
+         class="sidebar-link {% if request.endpoint == 'jobs' %}active{% endif %}">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        Jobs
+      </a>
+      <a href="{{ url_for('cv_page') }}"
+         class="sidebar-link {% if request.endpoint == 'cv_page' %}active{% endif %}">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        My CV
+      </a>
+      <a href="{{ url_for('scraper') }}"
+         class="sidebar-link {% if request.endpoint == 'scraper' %}active{% endif %}">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        Run Scraper
+      </a>
+      <a href="{{ url_for('digests') }}"
+         class="sidebar-link {% if request.endpoint == 'digests' %}active{% endif %}">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+        </svg>
+        Digests
+      </a>
+
+      <div class="pt-3 mt-3 border-t border-gray-100">
+        <a href="{{ url_for('preferences') }}"
+           class="sidebar-link {% if request.endpoint == 'preferences' %}active{% endif %}">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          Settings
+        </a>
       </div>
-    </div>
+    </nav>
+  </aside>
+
+  <!-- Mobile bottom nav -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-20 flex">
+    <a href="{{ url_for('dashboard') }}" class="flex-1 flex flex-col items-center py-2 text-xs {% if request.endpoint == 'dashboard' %}text-indigo-600{% else %}text-gray-500{% endif %}">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+      </svg>
+      Home
+    </a>
+    <a href="{{ url_for('jobs') }}" class="flex-1 flex flex-col items-center py-2 text-xs {% if request.endpoint == 'jobs' %}text-indigo-600{% else %}text-gray-500{% endif %}">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+      </svg>
+      Jobs
+    </a>
+    <a href="{{ url_for('cv_page') }}" class="flex-1 flex flex-col items-center py-2 text-xs {% if request.endpoint == 'cv_page' %}text-indigo-600{% else %}text-gray-500{% endif %}">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      CV
+    </a>
+    <a href="{{ url_for('scraper') }}" class="flex-1 flex flex-col items-center py-2 text-xs {% if request.endpoint == 'scraper' %}text-indigo-600{% else %}text-gray-500{% endif %}">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      Scrape
+    </a>
+    <a href="{{ url_for('preferences') }}" class="flex-1 flex flex-col items-center py-2 text-xs {% if request.endpoint == 'preferences' %}text-indigo-600{% else %}text-gray-500{% endif %}">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+      </svg>
+      Settings
+    </a>
   </nav>
 
-  <!-- Flash messages -->
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-        {% for category, message in messages %}
-          <div class="rounded-md p-4 mb-2
-            {% if category == 'success' %}bg-green-50 text-green-800 border border-green-200
-            {% elif category == 'error' %}bg-red-50 text-red-800 border border-red-200
-            {% else %}bg-blue-50 text-blue-800 border border-blue-200{% endif %}">
-            {{ message }}
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
-  {% endwith %}
+  <!-- Main content area -->
+  <div class="flex-1 md:ml-56 min-h-screen flex flex-col">
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="px-6 pt-4">
+          {% for category, message in messages %}
+            <div class="rounded-lg px-4 py-3 mb-2 text-sm
+              {% if category == 'success' %}bg-green-50 text-green-800 border border-green-200
+              {% elif category == 'error' %}bg-red-50 text-red-800 border border-red-200
+              {% else %}bg-blue-50 text-blue-800 border border-blue-200{% endif %}">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
 
-  <!-- Content -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-    {% block content %}{% endblock %}
-  </main>
+    <!-- Page content -->
+    <main class="flex-1 px-6 py-6 pb-20 md:pb-6">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
 
   {% block scripts %}{% endblock %}
 </body>
