@@ -160,15 +160,14 @@ def setup_background_scheduler():
         logger.error("Failed to start background scheduler: %s", e)
 
 
-def _run_apollo_enrichment(job_ids, api_key):
-    """Run Apollo contact enrichment for a list of job IDs."""
-    if not api_key:
-        return
+def _run_apollo_enrichment(job_ids):
+    """Run contact enrichment for a list of job IDs using the contact scraper."""
     conn = get_connection()
     cursor = conn.cursor()
     placeholders = ",".join("?" for _ in job_ids)
     cursor.execute(
-        f"SELECT job_id, company FROM job_listings WHERE job_id IN ({placeholders}) "
+        f"SELECT job_id, company, job_description, apply_url FROM job_listings "
+        f"WHERE job_id IN ({placeholders}) "
         f"AND (poster_email IS NULL OR poster_email = '')",
         job_ids,
     )
@@ -178,7 +177,7 @@ def _run_apollo_enrichment(job_ids, api_key):
     if not rows:
         return
 
-    contacts = enrich_jobs_with_contacts(rows, api_key)
+    contacts = enrich_jobs_with_contacts(rows)
     for jid, info in contacts.items():
         update_job_contacts(
             jid,
@@ -265,13 +264,12 @@ def _run_scraper_pipeline():
                 send_telegram_batch_summary(len(all_jobs), len(qualified_jobs), inserted, tg_token, tg_chat)
             logger.info("Sent %d Telegram alerts", alert_count)
 
-        # Phase 3.6: Apollo contact enrichment
-        apollo_key = preferences.get("apollo_api_key", "").strip()
-        if apollo_key:
-            with scraper_lock:
-                scraper_status["phase"] = "enriching_contacts"
-            all_job_ids = [j["job_id"] for j in all_analyzed if j.get("job_id")]
-            _run_apollo_enrichment(all_job_ids, apollo_key)
+        # Phase 3.6: Contact enrichment (via scraper, no API key needed)
+        with scraper_lock:
+            scraper_status["phase"] = "enriching_contacts"
+        all_job_ids = [j["job_id"] for j in all_analyzed if j.get("job_id")]
+        if all_job_ids:
+            _run_apollo_enrichment(all_job_ids)
 
         # Phase 4: Digest
         with scraper_lock:
@@ -390,12 +388,11 @@ def _run_live_search(query, location):
                 if job.get("relevance_score", 0) >= tg_min:
                     send_telegram_alert(job, tg_token, tg_chat)
 
-        # Phase 4: Apollo enrichment
-        apollo_key = preferences.get("apollo_api_key", "").strip()
-        if apollo_key and result_ids:
+        # Phase 4: Contact enrichment (via scraper, no API key needed)
+        if result_ids:
             with live_search_lock:
                 live_search_status["phase"] = "enriching_contacts"
-            _run_apollo_enrichment(result_ids, apollo_key)
+            _run_apollo_enrichment(result_ids)
 
         with live_search_lock:
             live_search_status["phase"] = "done"
