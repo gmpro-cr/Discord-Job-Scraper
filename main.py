@@ -127,13 +127,13 @@ DEFAULT_PREFS = {
     "gmail_address": "",
     "gmail_app_password": "",
     "apollo_api_key": "",
-    "discord_webhook_url": "",
-    "discord_min_score": 65,
-    "discord_bot_token": "",
+    "telegram_bot_token": "",
+    "telegram_chat_id": "",
+    "telegram_min_score": 65,
 }
 
 # Keys that should be stored in .env, not in user_preferences.json
-_CREDENTIAL_KEYS = {"gmail_app_password", "discord_bot_token", "apollo_api_key"}
+_CREDENTIAL_KEYS = {"gmail_app_password", "telegram_bot_token", "apollo_api_key"}
 
 
 def load_preferences():
@@ -149,7 +149,7 @@ def save_preferences(prefs):
     clean = dict(prefs)
     env_cred_map = {
         "gmail_app_password": "GMAIL_APP_PASSWORD",
-        "discord_bot_token": "DISCORD_BOT_TOKEN",
+        "telegram_bot_token": "TELEGRAM_BOT_TOKEN",
         "apollo_api_key": "APOLLO_API_KEY",
     }
     for pref_key, env_key in env_cred_map.items():
@@ -165,8 +165,8 @@ def apply_env_overrides(prefs):
         "GMAIL_ADDRESS": "gmail_address",
         "GMAIL_APP_PASSWORD": "gmail_app_password",
         "EMAIL_RECIPIENT": "email",
-        "DISCORD_WEBHOOK_URL": "discord_webhook_url",
-        "DISCORD_BOT_TOKEN": "discord_bot_token",
+        "TELEGRAM_BOT_TOKEN": "telegram_bot_token",
+        "TELEGRAM_CHAT_ID": "telegram_chat_id",
         "APOLLO_API_KEY": "apollo_api_key",
     }
     for env_key, pref_key in env_map.items():
@@ -174,10 +174,10 @@ def apply_env_overrides(prefs):
         if val:
             prefs[pref_key] = val
 
-    discord_min = os.environ.get("DISCORD_MIN_SCORE")
-    if discord_min:
+    telegram_min = os.environ.get("TELEGRAM_MIN_SCORE")
+    if telegram_min:
         try:
-            prefs["discord_min_score"] = int(discord_min)
+            prefs["telegram_min_score"] = int(telegram_min)
         except ValueError:
             pass
 

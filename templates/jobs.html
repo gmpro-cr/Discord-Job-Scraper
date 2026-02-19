@@ -2,194 +2,174 @@
 {% block title %}Jobs - Job Search Agent{% endblock %}
 
 {% block content %}
-<div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+<!-- Page Header -->
+<div class="mb-4 flex items-center justify-between">
   <div>
-    <h1 class="text-2xl font-bold text-gray-900">Jobs</h1>
-    <p class="text-gray-500 mt-1">{{ total }} jobs found</p>
+    <h1 class="text-xl font-bold text-gray-900">Jobs</h1>
+    <p class="text-sm text-gray-400 mt-0.5">{{ total }} results{% if total_pages > 1 %} · Page {{ page }} of {{ total_pages }}{% endif %}</p>
+  </div>
+  <div class="flex items-center gap-2">
+    <button onclick="toggleSection('search-tools-panel')" class="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      Search
+    </button>
   </div>
 </div>
 
-<!-- NLP Chat Search -->
-<div class="bg-white rounded-lg shadow mb-6 overflow-hidden">
-  <div class="px-5 pt-4 pb-2 border-b border-gray-100">
-    <div class="flex items-center gap-2">
-      <svg class="w-5 h-5 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<!-- Search Tools Panel (collapsed by default) -->
+<div id="search-tools-panel" class="hidden mb-4 space-y-3">
+  <!-- Smart Search -->
+  <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div class="px-4 pt-3 pb-2 flex items-center gap-2 border-b border-gray-100">
+      <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
       </svg>
-      <h2 class="text-lg font-semibold text-gray-900">Smart Search</h2>
-      <span class="text-xs text-gray-400 ml-1">Ask in plain English</span>
+      <span class="text-sm font-semibold text-gray-800">Smart Search</span>
+      <span class="text-xs text-gray-400">Ask in plain English</span>
+    </div>
+    <div id="nlp-chat-history" class="px-4 py-2 max-h-64 overflow-y-auto space-y-2" style="display:none;"></div>
+    <div class="px-4 py-3">
+      <form id="nlp-form" onsubmit="sendNlpQuery(event)" class="flex gap-2">
+        <input type="text" id="nlp-input"
+               placeholder='e.g. "remote PM jobs in Bangalore above 20 lakhs"'
+               class="flex-1 text-sm rounded-lg border-gray-200 shadow-sm focus:border-indigo-400 focus:ring-indigo-400 border p-2"
+               autocomplete="off">
+        <button type="submit" id="nlp-send-btn"
+                class="px-3 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+          </svg>
+          Ask
+        </button>
+      </form>
     </div>
   </div>
 
-  <!-- Chat history -->
-  <div id="nlp-chat-history" class="px-5 py-3 max-h-96 overflow-y-auto space-y-3" style="display:none;"></div>
-
-  <!-- Input -->
-  <div class="px-5 py-3">
-    <form id="nlp-form" onsubmit="sendNlpQuery(event)" class="flex gap-2">
-      <input type="text" id="nlp-input"
-             placeholder="e.g. &quot;remote PM jobs in Bangalore above 20 lakhs&quot;"
-             class="flex-1 text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2.5"
-             autocomplete="off">
-      <button type="submit" id="nlp-send-btn"
-              class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 flex items-center gap-1.5">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-        </svg>
-        Ask
-      </button>
-    </form>
-    <p class="text-xs text-gray-400 mt-1.5">Try: "startup PM roles in Mumbai", "senior positions above 30 lakhs", "jobs I haven't applied to"</p>
-  </div>
-</div>
-
-<!-- Live Search Section -->
-<div class="bg-white rounded-lg shadow p-5 mb-6">
-  <h2 class="text-lg font-semibold text-gray-900 mb-3">Live Search</h2>
-  <p class="text-sm text-gray-500 mb-4">Scrape all portals for new jobs matching your query. Results appear below once complete.</p>
-  <div id="search-form" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-    <div>
-      <input type="text" id="search-query" placeholder="Job title or keyword (e.g. Product Manager)"
-             class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
-    </div>
-    <div>
-      <input type="text" id="search-location" placeholder="Location (e.g. Bangalore)"
-             class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
-    </div>
-    <div>
+  <!-- Live Search -->
+  <div class="bg-white rounded-xl border border-gray-200 p-4">
+    <p class="text-sm font-semibold text-gray-800 mb-3">Live Search</p>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <input type="text" id="search-query" placeholder="Job title or keyword"
+             class="text-sm rounded-lg border-gray-200 shadow-sm focus:border-indigo-400 focus:ring-indigo-400 border p-2">
+      <input type="text" id="search-location" placeholder="Location"
+             class="text-sm rounded-lg border-gray-200 shadow-sm focus:border-indigo-400 focus:ring-indigo-400 border p-2">
       <button id="search-btn" onclick="startLiveSearch()"
-              class="w-full px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+              class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700">
         Search Jobs
       </button>
     </div>
-  </div>
-
-  <!-- Live Search Progress (hidden initially) -->
-  <div id="search-progress" class="hidden mt-4 pt-4 border-t border-gray-200">
-    <div class="flex items-center space-x-3 mb-3">
-      <svg id="search-spinner" class="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
-      <span id="search-phase-text" class="text-sm font-medium text-gray-900">Starting...</span>
+    <div id="search-progress" class="hidden mt-3 pt-3 border-t border-gray-100">
+      <div class="flex items-center gap-2 mb-2">
+        <svg id="search-spinner" class="animate-spin h-4 w-4 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span id="search-phase-text" class="text-sm text-gray-700">Starting...</span>
+      </div>
+      <div id="search-portal-list" class="space-y-0.5 mb-2"></div>
+      <div id="search-summary" class="hidden flex gap-4 text-xs text-gray-500">
+        <span>Scraped: <strong id="search-stat-total" class="text-gray-800">0</strong></span>
+        <span>New: <strong id="search-stat-inserted" class="text-gray-800">0</strong></span>
+        <span>Qualified: <strong id="search-stat-qualified" class="text-gray-800">0</strong></span>
+      </div>
+      <div id="search-error" class="hidden mt-1 text-sm text-red-500"></div>
     </div>
-    <div id="search-portal-list" class="space-y-1 mb-3"></div>
-    <div id="search-summary" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-      <div><span class="text-gray-500">Scraped:</span> <span id="search-stat-total" class="font-medium">0</span></div>
-      <div><span class="text-gray-500">Qualified:</span> <span id="search-stat-qualified" class="font-medium">0</span></div>
-      <div><span class="text-gray-500">New:</span> <span id="search-stat-inserted" class="font-medium">0</span></div>
-      <div><span class="text-gray-500">Duplicates:</span> <span id="search-stat-skipped" class="font-medium">0</span></div>
-    </div>
-    <div id="search-error" class="hidden mt-2 text-sm text-red-600"></div>
   </div>
 </div>
 
 <!-- Filter Bar -->
-<form method="GET" action="{{ url_for('jobs') }}" class="bg-white rounded-lg shadow p-4 mb-6">
-  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-    <div class="col-span-2 sm:col-span-1">
-      <input type="text" name="search" value="{{ filters.search }}" placeholder="Search roles, companies..."
-             class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
-    </div>
-    <div>
-      <select name="portal" class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
-        <option value="">All Portals</option>
-        {% for p in portals %}
-        <option value="{{ p }}" {% if filters.portal == p %}selected{% endif %}>{{ p }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div>
-      <select name="remote" class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
-        <option value="">All Remote</option>
-        <option value="remote" {% if filters.remote == 'remote' %}selected{% endif %}>Remote</option>
-        <option value="hybrid" {% if filters.remote == 'hybrid' %}selected{% endif %}>Hybrid</option>
-        <option value="on-site" {% if filters.remote == 'on-site' %}selected{% endif %}>On-site</option>
-      </select>
-    </div>
-    <div>
-      <select name="company_type" class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
-        <option value="">All Companies</option>
-        <option value="startup" {% if filters.company_type == 'startup' %}selected{% endif %}>Startup</option>
-        <option value="corporate" {% if filters.company_type == 'corporate' %}selected{% endif %}>Corporate</option>
-      </select>
-    </div>
-    <div>
-      <select name="location" class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
-        <option value="">All Locations</option>
-        {% for loc_name, loc_count in locations %}
-        <option value="{{ loc_name }}" {% if filters.location == loc_name %}selected{% endif %}>{{ loc_name }} ({{ loc_count }})</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div>
-      <select name="recency" class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
-        <option value="">All Time</option>
-        <option value="24h" {% if filters.recency == '24h' %}selected{% endif %}>Last 24 Hours</option>
-        <option value="3d" {% if filters.recency == '3d' %}selected{% endif %}>Last 3 Days</option>
-        <option value="1w" {% if filters.recency == '1w' %}selected{% endif %}>Last 1 Week</option>
-        <option value="1m" {% if filters.recency == '1m' %}selected{% endif %}>Last 1 Month</option>
-      </select>
-    </div>
-    <div>
-      <select name="min_score" class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
-        <option value="0" {% if filters.min_score == '0' %}selected{% endif %}>All Scores</option>
-        <option value="30" {% if filters.min_score == '30' %}selected{% endif %}>Score >= 30</option>
-        <option value="40" {% if filters.min_score == '40' or not filters.min_score %}selected{% endif %}>Score >= 40</option>
-        <option value="50" {% if filters.min_score == '50' %}selected{% endif %}>Score >= 50</option>
-        <option value="65" {% if filters.min_score == '65' %}selected{% endif %}>Score >= 65</option>
-        <option value="75" {% if filters.min_score == '75' %}selected{% endif %}>Score >= 75</option>
-      </select>
-    </div>
-    <div>
-      <select name="sort" class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
-        <option value="score_desc" {% if filters.sort == 'score_desc' %}selected{% endif %}>Score (high first)</option>
-        <option value="score_asc" {% if filters.sort == 'score_asc' %}selected{% endif %}>Score (low first)</option>
-        <option value="date_desc" {% if filters.sort == 'date_desc' %}selected{% endif %}>Newest first</option>
-        <option value="date_asc" {% if filters.sort == 'date_asc' %}selected{% endif %}>Oldest first</option>
-        <option value="company_asc" {% if filters.sort == 'company_asc' %}selected{% endif %}>Company A-Z</option>
-      </select>
-    </div>
-    <div>
-      <select name="experience" class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
-        <option value="">All Experience</option>
-        <option value="0-3" {% if filters.experience == '0-3' %}selected{% endif %}>0-3 years</option>
-        <option value="3-7" {% if filters.experience == '3-7' %}selected{% endif %}>3-7 years</option>
-        <option value="7-12" {% if filters.experience == '7-12' %}selected{% endif %}>7-12 years</option>
-        <option value="12+" {% if filters.experience == '12+' %}selected{% endif %}>12+ years</option>
-      </select>
-    </div>
-    <div>
-      <input type="number" name="salary_min" value="{{ filters.salary_min }}" placeholder="Min salary (lakhs)"
-             class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
-    </div>
-    <div>
-      <input type="number" name="salary_max" value="{{ filters.salary_max }}" placeholder="Max salary (lakhs)"
-             class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
-    </div>
-    <div>
-      <select name="applied" class="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
-        <option value="">All Status</option>
-        <option value="none" {% if filters.applied == 'none' %}selected{% endif %}>New</option>
-        <option value="applied" {% if filters.applied == 'applied' %}selected{% endif %}>Applied</option>
-        <option value="saved" {% if filters.applied == 'saved' %}selected{% endif %}>Saved</option>
-        <option value="phone_screen" {% if filters.applied == 'phone_screen' %}selected{% endif %}>Phone Screen</option>
-        <option value="interview" {% if filters.applied == 'interview' %}selected{% endif %}>Interview</option>
-        <option value="offer" {% if filters.applied == 'offer' %}selected{% endif %}>Offer</option>
-        <option value="rejected" {% if filters.applied == 'rejected' %}selected{% endif %}>Rejected</option>
-      </select>
-    </div>
-    <div class="flex items-end">
-      <button type="submit" class="w-full px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700">
-        Filter
-      </button>
-    </div>
+<form method="GET" action="{{ url_for('jobs') }}" class="bg-white rounded-xl border border-gray-200 p-3 mb-4" id="filter-form">
+  <!-- Primary row (always visible) -->
+  <div class="flex flex-wrap gap-2 items-center">
+    <input type="text" name="search" value="{{ filters.search }}" placeholder="Search roles, companies..."
+           class="flex-1 min-w-[160px] text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
+    <select name="sort" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
+      <option value="score_desc" {% if filters.sort == 'score_desc' or not filters.sort %}selected{% endif %}>Best match</option>
+      <option value="date_desc" {% if filters.sort == 'date_desc' %}selected{% endif %}>Newest</option>
+      <option value="date_asc" {% if filters.sort == 'date_asc' %}selected{% endif %}>Oldest</option>
+      <option value="company_asc" {% if filters.sort == 'company_asc' %}selected{% endif %}>Company A–Z</option>
+    </select>
+    <select name="remote" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
+      <option value="">All work types</option>
+      <option value="remote" {% if filters.remote == 'remote' %}selected{% endif %}>Remote</option>
+      <option value="hybrid" {% if filters.remote == 'hybrid' %}selected{% endif %}>Hybrid</option>
+      <option value="on-site" {% if filters.remote == 'on-site' %}selected{% endif %}>On-site</option>
+    </select>
+    <select name="applied" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
+      <option value="">All status</option>
+      <option value="none" {% if filters.applied == 'none' %}selected{% endif %}>New</option>
+      <option value="saved" {% if filters.applied == 'saved' %}selected{% endif %}>Saved</option>
+      <option value="applied" {% if filters.applied == 'applied' %}selected{% endif %}>Applied</option>
+      <option value="phone_screen" {% if filters.applied == 'phone_screen' %}selected{% endif %}>Phone Screen</option>
+      <option value="interview" {% if filters.applied == 'interview' %}selected{% endif %}>Interview</option>
+      <option value="offer" {% if filters.applied == 'offer' %}selected{% endif %}>Offer</option>
+      <option value="rejected" {% if filters.applied == 'rejected' %}selected{% endif %}>Rejected</option>
+    </select>
+    <button type="button" onclick="toggleSection('more-filters')"
+            class="text-sm text-gray-500 hover:text-gray-800 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 flex items-center gap-1">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
+      More
+    </button>
+    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700">
+      Filter
+    </button>
+    {% if filters.search or filters.portal or filters.remote or filters.location or filters.recency or filters.applied or filters.experience or filters.salary_min or filters.salary_max or (filters.min_score and filters.min_score != '40') %}
+    <a href="{{ url_for('jobs') }}" class="text-xs text-gray-400 hover:text-gray-600 px-2 py-2">Clear</a>
+    {% endif %}
+  </div>
+
+  <!-- More filters (hidden by default) -->
+  <div id="more-filters" class="hidden mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+    <select name="portal" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
+      <option value="">All portals</option>
+      {% for p in portals %}
+      <option value="{{ p }}" {% if filters.portal == p %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+    <select name="location" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
+      <option value="">All locations</option>
+      {% for loc_name, loc_count in locations %}
+      <option value="{{ loc_name }}" {% if filters.location == loc_name %}selected{% endif %}>{{ loc_name }} ({{ loc_count }})</option>
+      {% endfor %}
+    </select>
+    <select name="recency" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
+      <option value="">Any time</option>
+      <option value="24h" {% if filters.recency == '24h' %}selected{% endif %}>Last 24h</option>
+      <option value="3d" {% if filters.recency == '3d' %}selected{% endif %}>Last 3 days</option>
+      <option value="1w" {% if filters.recency == '1w' %}selected{% endif %}>Last week</option>
+      <option value="1m" {% if filters.recency == '1m' %}selected{% endif %}>Last month</option>
+    </select>
+    <select name="experience" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
+      <option value="">All exp levels</option>
+      <option value="0-3" {% if filters.experience == '0-3' %}selected{% endif %}>0–3 yrs</option>
+      <option value="3-7" {% if filters.experience == '3-7' %}selected{% endif %}>3–7 yrs</option>
+      <option value="7-12" {% if filters.experience == '7-12' %}selected{% endif %}>7–12 yrs</option>
+      <option value="12+" {% if filters.experience == '12+' %}selected{% endif %}>12+ yrs</option>
+    </select>
+    <select name="min_score" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
+      <option value="0" {% if filters.min_score == '0' %}selected{% endif %}>Any score</option>
+      <option value="30" {% if filters.min_score == '30' %}selected{% endif %}>Score ≥ 30</option>
+      <option value="40" {% if filters.min_score == '40' %}selected{% endif %}>Score ≥ 40</option>
+      <option value="60" {% if filters.min_score == '60' or not filters.min_score %}selected{% endif %}>Score ≥ 60</option>
+      <option value="50" {% if filters.min_score == '50' %}selected{% endif %}>Score ≥ 50</option>
+      <option value="65" {% if filters.min_score == '65' %}selected{% endif %}>Score ≥ 65</option>
+      <option value="75" {% if filters.min_score == '75' %}selected{% endif %}>Score ≥ 75</option>
+    </select>
+    <input type="number" name="salary_min" value="{{ filters.salary_min }}" placeholder="Min salary (L)"
+           class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
+    <input type="number" name="salary_max" value="{{ filters.salary_max }}" placeholder="Max salary (L)"
+           class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
+    <select name="company_type" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
+      <option value="">All companies</option>
+      <option value="startup" {% if filters.company_type == 'startup' %}selected{% endif %}>Startup</option>
+      <option value="corporate" {% if filters.company_type == 'corporate' %}selected{% endif %}>Corporate</option>
+    </select>
   </div>
 </form>
 
-<!-- Job Cards -->
+<!-- Job Cards Grid -->
 {% if jobs %}
-<div class="space-y-3" id="job-list">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-3" id="job-list">
   {% for job in jobs %}
   {% set status_colors = {
     0: 'border-l-gray-300',
@@ -201,7 +181,7 @@
     6: 'border-l-red-400'
   } %}
   {% set status_labels = {
-    0: ('New', 'bg-gray-100 text-gray-600'),
+    0: ('New', 'bg-gray-100 text-gray-500'),
     1: ('Applied', 'bg-green-100 text-green-700'),
     2: ('Saved', 'bg-blue-100 text-blue-700'),
     3: ('Phone Screen', 'bg-cyan-100 text-cyan-700'),
@@ -210,125 +190,157 @@
     6: ('Rejected', 'bg-red-100 text-red-600')
   } %}
   {% set s = job.applied_status | int %}
-  <div class="bg-white border border-gray-100 border-l-4 {{ status_colors.get(s, 'border-l-gray-300') }} rounded-xl shadow-sm hover:shadow-md transition-shadow"
+  {% set cv = job.cv_score | default(0) | int %}
+  <div class="bg-white border border-gray-100 border-l-4 {{ status_colors.get(s, 'border-l-gray-300') }} rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col"
        id="job-{{ job.job_id }}">
-    <div class="p-5">
+    <div class="p-4 flex flex-col flex-1">
 
-      <!-- Top row: badges + status pill -->
-      <div class="flex items-start justify-between gap-3 mb-2">
-        <div class="flex flex-wrap gap-1.5">
-          <span class="px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700">{{ job.portal }}</span>
-          {% if job.remote_status == 'remote' %}
-          <span class="px-2 py-0.5 rounded-md text-xs font-medium bg-green-50 text-green-700">Remote</span>
-          {% elif job.remote_status == 'hybrid' %}
-          <span class="px-2 py-0.5 rounded-md text-xs font-medium bg-amber-50 text-amber-700">Hybrid</span>
-          {% else %}
-          <span class="px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600">On-site</span>
-          {% endif %}
+      <!-- Top: company + status pill -->
+      <div class="flex items-start justify-between gap-2 mb-1">
+        <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+          <span class="text-sm font-medium text-gray-700 truncate">{{ job.company }}</span>
           {% if job.company_funding_stage %}
-          <span class="px-2 py-0.5 rounded-md text-xs font-medium bg-teal-50 text-teal-700">{{ job.company_funding_stage }}</span>
+          <span class="px-1.5 py-0.5 rounded text-xs bg-teal-50 text-teal-600">{{ job.company_funding_stage }}</span>
           {% endif %}
         </div>
-        <!-- Status pill top-right -->
-        {% set label_info = status_labels.get(s, ('New', 'bg-gray-100 text-gray-600')) %}
-        <span class="flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-semibold {{ label_info[1] }}">{{ label_info[0] }}</span>
+        {% set label_info = status_labels.get(s, ('New', 'bg-gray-100 text-gray-500')) %}
+        <span id="status-pill-{{ job.job_id }}" class="flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold {{ label_info[1] }}">{{ label_info[0] }}</span>
       </div>
 
-      <!-- Role + Company -->
-      <h3 class="text-base font-semibold text-gray-900 leading-snug">{{ job.role }}</h3>
-      <p class="text-sm text-gray-500 mt-0.5">
-        {{ job.company }}
-        {% if job.location %} &middot; {{ job.location }}{% endif %}
-        {% if job.date_posted %} &middot; <span class="text-indigo-500">{{ job.date_posted }}</span>{% endif %}
-      </p>
+      <!-- Role title -->
+      <h3 class="text-base font-bold text-gray-900 leading-snug mb-1">{{ job.role }}</h3>
+      {% if job.job_description %}
+      <p class="text-xs text-gray-400 mb-2 line-clamp-2 leading-relaxed">{{ job.job_description | truncate(160, True, '…') }}</p>
+      {% endif %}
 
-      <!-- Info row -->
-      <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
-        {% if job.salary %}<span class="text-green-700 font-medium">{{ job.salary_currency }} {{ job.salary }}</span>{% endif %}
-        {% if job.experience_min is not none %}<span>{{ job.experience_min }}-{{ job.experience_max }}y exp</span>{% endif %}
-        {% if job.company_size %}<span>{{ job.company_size }}</span>{% endif %}
+      <!-- Key details row -->
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 mb-3">
+        {% if job.location %}
+        <span class="flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          {{ job.location }}
+        </span>
+        {% endif %}
+        {% if job.remote_status == 'remote' %}
+        <span class="px-1.5 py-0.5 rounded bg-green-50 text-green-700 font-medium">Remote</span>
+        {% elif job.remote_status == 'hybrid' %}
+        <span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-medium">Hybrid</span>
+        {% endif %}
+        {% if job.salary %}
+        <span class="text-green-700 font-semibold">{{ job.salary_currency }} {{ job.salary }}</span>
+        {% endif %}
+        {% if job.experience_min is not none %}
+        <span>{{ job.experience_min }}–{{ job.experience_max }}y</span>
+        {% endif %}
+        {% if job.date_posted %}
+        <span class="text-gray-400 relative-date" data-date="{{ job.date_posted }}">{{ job.date_posted }}</span>
+        {% endif %}
       </div>
 
-      <!-- CV Match Bar -->
-      {% set cv = job.cv_score | default(0) | int %}
-      <div class="mt-3">
-        <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
-          <span>CV Match</span>
-          <span class="font-semibold {% if cv >= 70 %}text-green-700{% elif cv >= 40 %}text-amber-600{% else %}text-gray-400{% endif %}">{{ cv }}%</span>
+      <!-- CV Match bar -->
+      <div class="mb-3">
+        <div class="flex items-center justify-between text-xs mb-1">
+          <span class="text-gray-400">CV Match</span>
+          <span class="font-bold {% if cv >= 70 %}text-green-600{% elif cv >= 40 %}text-amber-600{% else %}text-gray-400{% endif %}">{{ cv }}%</span>
         </div>
         <div class="w-full bg-gray-100 rounded-full h-1.5">
-          <div class="h-1.5 rounded-full {% if cv >= 70 %}bg-green-500{% elif cv >= 40 %}bg-amber-400{% else %}bg-gray-300{% endif %}"
+          <div class="h-1.5 rounded-full transition-all {% if cv >= 70 %}bg-green-500{% elif cv >= 40 %}bg-amber-400{% else %}bg-gray-300{% endif %}"
                style="width: {{ cv }}%"></div>
         </div>
       </div>
 
-      <!-- Description snippet -->
-      {% if job.job_description %}
-      <p class="text-xs text-gray-400 mt-2 line-clamp-2">{{ job.job_description[:180] }}{% if job.job_description|length > 180 %}...{% endif %}</p>
-      {% endif %}
-
-      <!-- Contact Info -->
+      <!-- Contact info (compact) -->
       {% if job.poster_email or job.poster_linkedin %}
-      <div class="mt-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100 text-xs flex flex-wrap gap-x-3 gap-y-1">
-        <span class="font-medium text-blue-700">Contact:</span>
-        {% if job.poster_name %}<span class="text-blue-700">{{ job.poster_name }}</span>{% endif %}
-        {% if job.poster_email %}<a href="mailto:{{ job.poster_email }}" class="text-blue-600 hover:underline">{{ job.poster_email }}</a>{% endif %}
-        {% if job.poster_linkedin %}<a href="{{ job.poster_linkedin }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline">LinkedIn</a>{% endif %}
+      <div class="mb-2 text-xs flex flex-wrap gap-2 text-blue-600">
+        {% if job.poster_name %}<span class="text-gray-500">{{ job.poster_name }}</span>{% endif %}
+        {% if job.poster_email %}<a href="mailto:{{ job.poster_email }}" class="hover:underline">{{ job.poster_email }}</a>{% endif %}
+        {% if job.poster_linkedin %}<a href="{{ job.poster_linkedin }}" target="_blank" rel="noopener" class="hover:underline">LinkedIn</a>{% endif %}
       </div>
       {% endif %}
 
-      <!-- Actions row -->
-      <div class="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-        {% if job.apply_url %}
-        <a href="{{ job.apply_url }}" target="_blank" rel="noopener"
-           class="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700">
-          Apply
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-          </svg>
-        </a>
-        {% endif %}
+      <!-- Portal badge (small, pushed to bottom) -->
+      <div class="mt-auto pt-3 border-t border-gray-50">
+        <!-- Action row -->
+        <div class="flex items-center gap-1.5 flex-wrap">
+          {% if job.apply_url %}
+          <a href="{{ job.apply_url }}" target="_blank" rel="noopener"
+             onclick="onApplyClick('{{ job.job_id }}')"
+             data-apply-url="{{ job.apply_url }}"
+             class="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700">
+            Apply
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+            </svg>
+          </a>
+          {% endif %}
 
-        <select onchange="updateJobStatus('{{ job.job_id }}', this.value)"
-                class="text-xs rounded-lg border-gray-200 bg-gray-50 px-2 py-1.5 border focus:border-indigo-400 focus:ring-0 cursor-pointer">
-          <option value="0" {% if s == 0 %}selected{% endif %}>Set Status</option>
-          <option value="1" {% if s == 1 %}selected{% endif %}>Applied</option>
-          <option value="2" {% if s == 2 %}selected{% endif %}>Save</option>
-          <option value="3" {% if s == 3 %}selected{% endif %}>Phone Screen</option>
-          <option value="4" {% if s == 4 %}selected{% endif %}>Interview</option>
-          <option value="5" {% if s == 5 %}selected{% endif %}>Offer</option>
-          <option value="6" {% if s == 6 %}selected{% endif %}>Rejected</option>
-        </select>
+          <select onchange="updateJobStatus('{{ job.job_id }}', this.value, this)"
+                  class="text-xs rounded-lg border-gray-200 bg-white px-2 py-1.5 border focus:border-indigo-400 focus:ring-0 cursor-pointer">
+            <option value="" disabled {% if s == 0 %}selected{% endif %}>Change status…</option>
+            <option value="1" {% if s == 1 %}selected{% endif %}>Applied</option>
+            <option value="2" {% if s == 2 %}selected{% endif %}>Saved</option>
+            <option value="3" {% if s == 3 %}selected{% endif %}>Phone Screen</option>
+            <option value="4" {% if s == 4 %}selected{% endif %}>Interview</option>
+            <option value="5" {% if s == 5 %}selected{% endif %}>Offer</option>
+            <option value="6" {% if s == 6 %}selected{% endif %}>Rejected</option>
+          </select>
 
-        <button onclick="toggleGapAnalysis('{{ job.job_id }}', this)"
-                class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50">
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-          </svg>
-          Gap Analysis
-        </button>
+          <button onclick="toggleGapAnalysis('{{ job.job_id }}', this)"
+                  class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
+            Gap Analysis
+          </button>
 
-        <button onclick="fetchTailoredPoints('{{ job.job_id }}', this)"
-                class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50">
-          Tailored Points
-        </button>
+          <button onclick="fetchTailoredPoints('{{ job.job_id }}', this)"
+                  class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
+            Resume Tips
+          </button>
 
-        <span class="ml-auto text-xs text-gray-300 font-mono">{{ job.relevance_score }}pt</span>
+          <button onclick="toggleNotes('{{ job.job_id }}')"
+                  id="notes-btn-{{ job.job_id }}"
+                  class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-700">
+            Notes{% if job.user_notes %} <span class="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>{% endif %}
+          </button>
+
+          <button onclick="hideJob('{{ job.job_id }}')"
+                  class="inline-flex items-center gap-1 px-2 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-400 hover:bg-red-50 hover:text-red-500 hover:border-red-200"
+                  title="Not interested — hide this job">
+            Hide
+          </button>
+
+          <span class="ml-auto text-xs text-gray-300 font-mono">{{ job.relevance_score }}pt</span>
+          <span class="px-1.5 py-0.5 rounded text-xs bg-indigo-50 text-indigo-500">{{ job.portal }}</span>
+        </div>
       </div>
 
       <!-- Gap Analysis Panel (hidden by default) -->
-      <div id="gap-{{ job.job_id }}" class="hidden mt-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
-        <div class="flex items-center justify-between mb-3">
-          <p class="text-xs font-semibold text-slate-700">Gap Analysis</p>
-          <div id="gap-score-{{ job.job_id }}" class="text-xs font-bold text-slate-500"></div>
+      <div id="gap-{{ job.job_id }}" class="hidden mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+        <div class="flex items-center justify-between mb-2">
+          <p class="font-semibold text-slate-700">Gap Analysis</p>
+          <div id="gap-score-{{ job.job_id }}" class="font-bold text-slate-500"></div>
         </div>
-        <div id="gap-content-{{ job.job_id }}" class="text-xs text-slate-500 italic">Loading...</div>
+        <div id="gap-content-{{ job.job_id }}" class="text-slate-500 italic">Loading...</div>
       </div>
 
       <!-- Tailored Points Panel (hidden by default) -->
-      <div id="tailored-{{ job.job_id }}" class="hidden mt-3 p-4 bg-amber-50 rounded-xl border border-amber-200">
-        <p class="text-xs font-semibold text-amber-800 mb-2">Tailored Resume Points</p>
+      <div id="tailored-{{ job.job_id }}" class="hidden mt-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
+        <p class="text-xs font-semibold text-amber-800 mb-1.5">Tailored Resume Points</p>
         <ul id="tailored-list-{{ job.job_id }}" class="space-y-1 text-xs text-amber-900"></ul>
+      </div>
+
+      <!-- Notes Panel (hidden by default) -->
+      <div id="notes-{{ job.job_id }}" class="hidden mt-3 p-3 bg-yellow-50 rounded-xl border border-yellow-200">
+        <p class="text-xs font-semibold text-yellow-800 mb-1.5">My Notes</p>
+        <textarea id="notes-text-{{ job.job_id }}"
+                  class="w-full text-xs rounded-lg border border-yellow-200 focus:border-yellow-400 focus:ring-1 focus:ring-yellow-300 p-2 bg-white resize-none"
+                  rows="3"
+                  placeholder="Add interview notes, contacts, follow-up reminders...">{{ job.user_notes or '' }}</textarea>
+        <div class="flex justify-end mt-1.5">
+          <button onclick="saveNote('{{ job.job_id }}')"
+                  id="notes-save-{{ job.job_id }}"
+                  class="px-3 py-1 bg-yellow-600 text-white text-xs font-semibold rounded-lg hover:bg-yellow-700">
+            Save
+          </button>
+        </div>
       </div>
 
     </div>
@@ -338,40 +350,34 @@
 
 <!-- Pagination -->
 {% if total_pages > 1 %}
-<nav class="mt-6 flex items-center justify-center space-x-1">
+<nav class="mt-6 flex items-center justify-center gap-1">
   {% if page > 1 %}
-  <a href="{{ url_for('jobs', page=page-1, **filters) }}"
-     class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-    Prev
-  </a>
+  <a href="{{ url_for('jobs', page=page-1, **clean_filters) }}"
+     class="px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">← Prev</a>
   {% endif %}
 
   {% for p in range(1, total_pages + 1) %}
     {% if p == page %}
-    <span class="px-3 py-2 text-sm font-medium text-white bg-indigo-600 border border-indigo-600 rounded-md">{{ p }}</span>
+    <span class="px-3 py-2 text-sm font-semibold text-white bg-indigo-600 border border-indigo-600 rounded-lg">{{ p }}</span>
     {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
-    <a href="{{ url_for('jobs', page=p, **filters) }}"
-       class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-      {{ p }}
-    </a>
+    <a href="{{ url_for('jobs', page=p, **clean_filters) }}"
+       class="px-3 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">{{ p }}</a>
     {% elif p == page - 3 or p == page + 3 %}
-    <span class="px-2 py-2 text-sm text-gray-400">...</span>
+    <span class="px-2 py-2 text-sm text-gray-400">…</span>
     {% endif %}
   {% endfor %}
 
   {% if page < total_pages %}
-  <a href="{{ url_for('jobs', page=page+1, **filters) }}"
-     class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-    Next
-  </a>
+  <a href="{{ url_for('jobs', page=page+1, **clean_filters) }}"
+     class="px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">Next →</a>
   {% endif %}
 </nav>
 {% endif %}
 
 {% else %}
-<div class="bg-white rounded-lg shadow p-10 text-center">
-  <p class="text-gray-500 text-lg">No jobs found matching your filters.</p>
-  <p class="text-gray-400 text-sm mt-2">Try a live search above or adjust your filters.</p>
+<div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
+  <p class="text-gray-500 text-base">No jobs found.</p>
+  <p class="text-gray-400 text-sm mt-1">Try broadening your filters or run a live search.</p>
 </div>
 {% endif %}
 {% endblock %}
@@ -380,12 +386,27 @@
 <script>
 let searchPollInterval = null;
 
+function toggleSection(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('hidden');
+}
+
+// Auto-show more-filters if any advanced filter is active
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const advanced = ['portal', 'location', 'recency', 'experience', 'min_score', 'salary_min', 'salary_max', 'company_type'];
+  if (advanced.some(k => params.get(k))) {
+    const el = document.getElementById('more-filters');
+    if (el) el.classList.remove('hidden');
+  }
+})();
+
 const searchPhaseLabels = {
   starting: 'Starting search...',
   scraping: 'Scraping job portals...',
   analyzing: 'Analyzing and scoring jobs...',
-  storing: 'Storing jobs in database...',
-  enriching_contacts: 'Looking up recruiter contacts...',
+  storing: 'Storing jobs...',
+  enriching_contacts: 'Looking up contacts...',
   done: 'Complete!',
   error: 'Error occurred',
   idle: 'Idle',
@@ -394,11 +415,7 @@ const searchPhaseLabels = {
 function startLiveSearch() {
   const query = document.getElementById('search-query').value.trim();
   const location = document.getElementById('search-location').value.trim();
-
-  if (!query && !location) {
-    alert('Please enter a job title/keyword or location.');
-    return;
-  }
+  if (!query && !location) { alert('Please enter a job title or location.'); return; }
 
   const btn = document.getElementById('search-btn');
   btn.disabled = true;
@@ -438,50 +455,39 @@ function pollSearchStatus() {
     .then(s => {
       document.getElementById('search-phase-text').textContent = searchPhaseLabels[s.phase] || s.phase;
 
-      // Portal progress
       const portalList = document.getElementById('search-portal-list');
       const portals = Object.entries(s.portal_progress || {});
       if (portals.length > 0) {
         portalList.innerHTML = portals.map(([name, info]) => {
-          const icon = info.status === 'success'
-            ? '<span class="text-green-600 font-bold">&#10003;</span>'
-            : '<span class="text-red-500 font-bold">&#10007;</span>';
-          return `<div class="flex items-center justify-between text-xs py-0.5">
-            <span class="flex items-center space-x-2">
-              ${icon}
-              <span class="capitalize text-gray-700">${name}</span>
-            </span>
-            <span class="text-gray-500">${info.count} jobs</span>
+          const icon = info.status === 'success' ? '✓' : '✗';
+          const color = info.status === 'success' ? 'text-green-600' : 'text-red-500';
+          return `<div class="flex justify-between text-xs py-0.5">
+            <span class="${color} flex items-center gap-1">${icon} <span class="text-gray-700">${name}</span></span>
+            <span class="text-gray-400">${info.count} jobs</span>
           </div>`;
         }).join('');
       }
 
-      // Summary stats
       if (s.total_jobs > 0 || s.phase === 'done') {
         document.getElementById('search-summary').classList.remove('hidden');
         document.getElementById('search-stat-total').textContent = s.total_jobs;
         document.getElementById('search-stat-qualified').textContent = s.qualified_jobs;
         document.getElementById('search-stat-inserted').textContent = s.inserted;
-        document.getElementById('search-stat-skipped').textContent = s.skipped;
       }
 
-      // Done - redirect to see fresh results
       if (s.phase === 'done') {
         clearInterval(searchPollInterval);
         document.getElementById('search-spinner').classList.add('hidden');
-        document.getElementById('search-phase-text').textContent = 'Search complete! Redirecting...';
-        setTimeout(() => {
-          window.location.href = '/jobs?sort=score_desc&min_score=40';
-        }, 1000);
+        document.getElementById('search-phase-text').textContent = 'Done! Refreshing...';
+        setTimeout(() => { window.location.href = '/jobs?sort=score_desc&min_score=40'; }, 1000);
       }
 
-      // Error
       if (s.phase === 'error') {
         clearInterval(searchPollInterval);
         document.getElementById('search-spinner').classList.add('hidden');
         const errDiv = document.getElementById('search-error');
         errDiv.classList.remove('hidden');
-        errDiv.textContent = s.error || 'Unknown error occurred';
+        errDiv.textContent = s.error || 'Unknown error';
         const btn = document.getElementById('search-btn');
         btn.disabled = false;
         btn.textContent = 'Search Jobs';
@@ -491,11 +497,11 @@ function pollSearchStatus() {
     .catch(err => console.error('Search poll error:', err));
 }
 
-// Check if a search is already running on page load
 fetch('/api/search/status')
   .then(r => r.json())
   .then(s => {
     if (s.running) {
+      document.getElementById('search-tools-panel').classList.remove('hidden');
       document.getElementById('search-progress').classList.remove('hidden');
       const btn = document.getElementById('search-btn');
       btn.disabled = true;
@@ -506,16 +512,143 @@ fetch('/api/search/status')
     }
   });
 
-function updateJobStatus(jobId, status) {
-  if (!status || status === '0') return;
+// Status metadata for in-place card updates
+const STATUS_META = {
+  0: {label: 'New',          badge: 'bg-gray-100 text-gray-500',       border: 'border-l-gray-300'},
+  1: {label: 'Applied',      badge: 'bg-green-100 text-green-700',     border: 'border-l-green-400'},
+  2: {label: 'Saved',        badge: 'bg-blue-100 text-blue-700',       border: 'border-l-blue-400'},
+  3: {label: 'Phone Screen', badge: 'bg-cyan-100 text-cyan-700',       border: 'border-l-cyan-400'},
+  4: {label: 'Interview',    badge: 'bg-orange-100 text-orange-700',   border: 'border-l-orange-400'},
+  5: {label: 'Offer',        badge: 'bg-emerald-100 text-emerald-700', border: 'border-l-emerald-500'},
+  6: {label: 'Rejected',     badge: 'bg-red-100 text-red-600',         border: 'border-l-red-400'},
+};
+
+function updateJobStatus(jobId, statusVal, selectEl) {
+  if (!statusVal) return;
+  const status = parseInt(statusVal);
   fetch(`/api/jobs/${jobId}/status`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({status: parseInt(status)}),
+    body: JSON.stringify({status}),
   })
   .then(r => r.json())
-  .then(data => { if (data.ok) window.location.reload(); })
-  .catch(err => console.error('Error updating job status:', err));
+  .then(data => {
+    if (!data.ok) return;
+    const meta = STATUS_META[status] || STATUS_META[0];
+
+    // Update border color on card
+    const card = document.getElementById('job-' + jobId);
+    if (card) {
+      const borderClasses = Object.values(STATUS_META).map(m => m.border);
+      card.classList.remove(...borderClasses);
+      card.classList.add(meta.border);
+    }
+
+    // Update status pill badge
+    const pill = document.getElementById('status-pill-' + jobId);
+    if (pill) {
+      const allBadge = Object.values(STATUS_META).flatMap(m => m.badge.split(' '));
+      pill.classList.remove(...allBadge);
+      meta.badge.split(' ').forEach(c => pill.classList.add(c));
+      pill.textContent = meta.label;
+    }
+
+    showToast(`Marked as ${meta.label}`);
+  })
+  .catch(err => console.error('Error updating status:', err));
+}
+
+function onApplyClick(jobId) {
+  // After a brief delay, nudge user to mark as Applied
+  setTimeout(() => {
+    showToastWithAction('Did you apply? Mark it →', 'Mark Applied', () => {
+      updateJobStatus(jobId, '1');
+      // Update the select element to show "Applied"
+      const card = document.getElementById('job-' + jobId);
+      if (card) {
+        const sel = card.querySelector('select');
+        if (sel) sel.value = '1';
+      }
+    });
+  }, 1200);
+}
+
+let _toastTimer = null;
+function showToast(msg, duration) {
+  duration = duration || 2500;
+  let toast = document.getElementById('_toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = '_toast';
+    toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50 pointer-events-none';
+    toast.style.transition = 'opacity 0.3s';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { toast.style.opacity = '0'; }, duration);
+}
+
+function showToastWithAction(msg, actionLabel, onAction) {
+  let toast = document.getElementById('_toast_action');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = '_toast_action';
+    toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50 flex items-center gap-3';
+    toast.style.transition = 'opacity 0.3s';
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML = `<span>${escapeHtml(msg)}</span>
+    <button class="text-indigo-300 hover:text-white font-semibold underline" id="_toast_action_btn">${escapeHtml(actionLabel)}</button>
+    <button class="text-gray-400 hover:text-white ml-1" id="_toast_action_close">✕</button>`;
+  toast.style.opacity = '1';
+
+  document.getElementById('_toast_action_btn').addEventListener('click', () => {
+    onAction();
+    toast.style.opacity = '0';
+  });
+  document.getElementById('_toast_action_close').addEventListener('click', () => {
+    toast.style.opacity = '0';
+  });
+
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 6000);
+}
+
+// Convert ISO dates to relative ("3 days ago")
+function toRelativeDate(isoStr) {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  if (isNaN(d)) return isoStr;
+  const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
+  if (diffDays <= 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 14) return '1 week ago';
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  if (diffDays < 60) return '1 month ago';
+  return `${Math.floor(diffDays / 30)} months ago`;
+}
+
+// Run relative date conversion on page load
+document.querySelectorAll('.relative-date').forEach(el => {
+  const rel = toRelativeDate(el.dataset.date);
+  if (rel) el.textContent = rel;
+});
+
+// Filter form: strip empty params before submitting to keep URLs clean
+const filterForm = document.getElementById('filter-form');
+if (filterForm) {
+  filterForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const data = new FormData(this);
+    const params = new URLSearchParams();
+    for (const [key, value] of data.entries()) {
+      if (value && value !== '0') params.set(key, value);
+    }
+    window.location.href = '/jobs?' + params.toString();
+  });
 }
 
 function toggleGapAnalysis(jobId, btn) {
@@ -529,7 +662,6 @@ function toggleGapAnalysis(jobId, btn) {
   }
 
   panel.classList.remove('hidden');
-
   if (content.dataset.loaded) return;
 
   fetch(`/api/jobs/${jobId}/gap-analysis`)
@@ -549,7 +681,7 @@ function toggleGapAnalysis(jobId, btn) {
         ? `<div class="mb-2">
             <p class="font-semibold text-green-700 mb-1">✓ Matched (${data.matched_skills.length})</p>
             <div class="flex flex-wrap gap-1">${data.matched_skills.map(s =>
-              `<span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">${escapeHtml(s)}</span>`
+              `<span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded">${escapeHtml(s)}</span>`
             ).join('')}</div>
            </div>`
         : '';
@@ -558,7 +690,7 @@ function toggleGapAnalysis(jobId, btn) {
         ? `<div class="mb-2">
             <p class="font-semibold text-red-600 mb-1">✗ Missing (${data.missing_skills.length})</p>
             <div class="flex flex-wrap gap-1">${data.missing_skills.map(s =>
-              `<span class="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-xs border border-red-100">${escapeHtml(s)}</span>`
+              `<span class="px-1.5 py-0.5 bg-red-50 text-red-600 rounded border border-red-100">${escapeHtml(s)}</span>`
             ).join('')}</div>
            </div>`
         : '';
@@ -580,8 +712,6 @@ function toggleGapAnalysis(jobId, btn) {
     });
 }
 
-// ---- NLP Chat Search ----
-
 function sendNlpQuery(e) {
   e.preventDefault();
   const input = document.getElementById('nlp-input');
@@ -591,13 +721,11 @@ function sendNlpQuery(e) {
   const history = document.getElementById('nlp-chat-history');
   history.style.display = 'block';
 
-  // Add user message bubble
   const userBubble = document.createElement('div');
   userBubble.className = 'flex justify-end';
   userBubble.innerHTML = `<div class="bg-indigo-600 text-white text-sm rounded-lg rounded-br-sm px-3 py-2 max-w-md">${escapeHtml(query)}</div>`;
   history.appendChild(userBubble);
 
-  // Add loading bubble
   const loadingId = 'nlp-loading-' + Date.now();
   const loadingBubble = document.createElement('div');
   loadingBubble.id = loadingId;
@@ -628,19 +756,16 @@ function sendNlpQuery(e) {
       return;
     }
 
-    // Build response bubble
     const resp = document.createElement('div');
     resp.className = 'flex justify-start';
 
-    // Filter tags
     const tags = (data.filter_labels || []).map(label =>
       `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 cursor-pointer hover:bg-indigo-200" onclick="applyNlpFilter(this)">${escapeHtml(label)}</span>`
     ).join('');
 
-    // Job summary cards (compact)
     let jobsHtml = '';
     if (data.jobs && data.jobs.length > 0) {
-      const jobCards = data.jobs.slice(0, 10).map(job => {
+      const jobCards = data.jobs.slice(0, 8).map(job => {
         const scoreColor = job.relevance_score >= 75 ? 'text-green-700 bg-green-100'
           : job.relevance_score >= 50 ? 'text-yellow-700 bg-yellow-100'
           : 'text-gray-600 bg-gray-100';
@@ -654,21 +779,21 @@ function sendNlpQuery(e) {
           <div class="flex items-start justify-between gap-2">
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-gray-900 truncate">${escapeHtml(job.role)}</p>
-              <p class="text-xs text-gray-500">${escapeHtml(job.company)}${job.location ? ' &middot; ' + escapeHtml(job.location) : ''}</p>
+              <p class="text-xs text-gray-500">${escapeHtml(job.company)}${job.location ? ' · ' + escapeHtml(job.location) : ''}</p>
               <div class="flex items-center gap-2 mt-0.5">${remoteBadge}${salary}</div>
             </div>
             <div class="flex-shrink-0 flex items-center gap-2">
-              <span class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${scoreColor}">${job.relevance_score}</span>
-              ${job.apply_url ? `<a href="${job.apply_url}" target="_blank" rel="noopener" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap">Apply</a>` : ''}
+              <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${scoreColor}">${job.relevance_score}</span>
+              ${job.apply_url ? `<a href="${job.apply_url}" target="_blank" rel="noopener" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Apply</a>` : ''}
             </div>
           </div>
         </div>`;
       }).join('');
 
-      const moreCount = data.total > 10 ? `<p class="text-xs text-gray-400 pt-1">${data.total - 10} more jobs match. <a href="/jobs?${buildFilterQueryString(data.filters)}" class="text-indigo-600 hover:underline">View all ${data.total}</a></p>` : '';
+      const moreCount = data.total > 8 ? `<p class="text-xs text-gray-400 pt-1">${data.total - 8} more. <a href="/jobs?${buildFilterQueryString(data.filters)}" class="text-indigo-600 hover:underline">View all ${data.total}</a></p>` : '';
       jobsHtml = `<div class="mt-2">${jobCards}${moreCount}</div>`;
     } else {
-      jobsHtml = '<p class="text-sm text-gray-500 mt-2">No jobs found matching your query. Try broadening your search.</p>';
+      jobsHtml = '<p class="text-sm text-gray-500 mt-2">No jobs found. Try broadening your search.</p>';
     }
 
     resp.innerHTML = `<div class="bg-gray-50 border border-gray-200 text-sm rounded-lg rounded-bl-sm px-4 py-3 max-w-lg w-full">
@@ -677,7 +802,7 @@ function sendNlpQuery(e) {
       <p class="text-sm font-medium text-gray-800 mt-2">${data.total} job${data.total !== 1 ? 's' : ''} found</p>
       ${jobsHtml}
       <div class="mt-2 pt-2 border-t border-gray-200">
-        <a href="/jobs?${buildFilterQueryString(data.filters)}" class="text-xs font-medium text-indigo-600 hover:text-indigo-800">View full results with filters applied &rarr;</a>
+        <a href="/jobs?${buildFilterQueryString(data.filters)}" class="text-xs font-medium text-indigo-600 hover:text-indigo-800">View all with filters →</a>
       </div>
     </div>`;
 
@@ -713,11 +838,8 @@ function buildFilterQueryString(filters) {
 }
 
 function applyNlpFilter(el) {
-  // Parse the filter tag text and navigate to /jobs with that filter applied
   const text = el.textContent.trim();
   const current = new URLSearchParams(window.location.search);
-
-  // Map label patterns back to filter params
   const match = text.match(/^(\w[\w\s]*?):\s*(.+)$/);
   if (match) {
     const key = match[1].toLowerCase().trim();
@@ -733,31 +855,127 @@ function applyNlpFilter(el) {
   window.location.href = '/jobs?' + current.toString();
 }
 
+// ── Hide job ──────────────────────────────────────────────────────────────────
+function hideJob(jobId) {
+  fetch(`/api/jobs/${jobId}/hide`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({hidden: true}),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.ok) return;
+    const card = document.getElementById('job-' + jobId);
+    if (card) {
+      card.style.transition = 'opacity 0.25s';
+      card.style.opacity = '0';
+      setTimeout(() => card.remove(), 280);
+    }
+    showToast('Job hidden · it won\'t show again');
+  })
+  .catch(err => console.error('Error hiding job:', err));
+}
+
+// ── Notes ─────────────────────────────────────────────────────────────────────
+function toggleNotes(jobId) {
+  const panel = document.getElementById('notes-' + jobId);
+  if (!panel.classList.contains('hidden')) {
+    panel.classList.add('hidden');
+    return;
+  }
+  panel.classList.remove('hidden');
+  panel.querySelector('textarea').focus();
+}
+
+function saveNote(jobId) {
+  const textarea = document.getElementById('notes-text-' + jobId);
+  const notes = textarea ? textarea.value : '';
+  const btn = document.getElementById('notes-save-' + jobId);
+  if (btn) { btn.textContent = '...'; btn.disabled = true; }
+
+  fetch(`/api/jobs/${jobId}/notes`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({notes}),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (btn) { btn.textContent = 'Saved ✓'; btn.disabled = false; }
+    setTimeout(() => { if (btn) btn.textContent = 'Save'; }, 2000);
+
+    // Show/hide the yellow dot indicator on the Notes button
+    const notesBtn = document.getElementById('notes-btn-' + jobId);
+    if (notesBtn) {
+      const dot = notesBtn.querySelector('span');
+      if (notes.trim()) {
+        if (!dot) {
+          const d = document.createElement('span');
+          d.className = 'w-1.5 h-1.5 rounded-full bg-yellow-400';
+          notesBtn.appendChild(d);
+        }
+      } else if (dot) {
+        dot.remove();
+      }
+    }
+    showToast('Note saved');
+  })
+  .catch(err => {
+    if (btn) { btn.textContent = 'Save'; btn.disabled = false; }
+    console.error('Error saving note:', err);
+  });
+}
+
+// ── Junk apply URL detection ──────────────────────────────────────────────────
+function isJunkApplyUrl(url) {
+  if (!url) return false;
+  const u = url.toLowerCase();
+  return (
+    /naukri\.com\/[a-z][a-z-]+-jobs(\/|$|\?)/.test(u) ||        // naukri category pages
+    /linkedin\.com\/jobs\/search/.test(u) ||                      // LinkedIn search
+    /indeed\.com\/(jobs|viewjob)\?/.test(u) ||                    // Indeed search
+    /glassdoor\.com\/job-listing\/[a-z]/.test(u) ||               // Glassdoor generic
+    /\/jobs\/search/.test(u) ||                                    // generic /jobs/search paths
+    /[?&](q|query|keyword|jobType)=/.test(u) && !/apply/.test(u)  // search params without apply
+  );
+}
+
+// Flag generic search-page Apply buttons on page load
+document.querySelectorAll('[data-apply-url]').forEach(el => {
+  if (isJunkApplyUrl(el.getAttribute('data-apply-url'))) {
+    // Replace button content text only, keep the SVG
+    const svgEl = el.querySelector('svg');
+    el.textContent = 'View Listing';
+    if (svgEl) el.appendChild(svgEl);
+    el.title = 'Links to a search page — you may need to find the specific listing manually';
+    el.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+    el.classList.add('bg-gray-500', 'hover:bg-gray-600');
+  }
+});
+
 function fetchTailoredPoints(jobId, btn) {
   const panel = document.getElementById('tailored-' + jobId);
   const list = document.getElementById('tailored-list-' + jobId);
 
-  // Toggle if already visible
   if (!panel.classList.contains('hidden')) {
     panel.classList.add('hidden');
     return;
   }
 
-  btn.textContent = 'Loading...';
+  btn.textContent = '...';
   btn.disabled = true;
 
   fetch(`/api/jobs/${jobId}/tailored-points`)
     .then(r => r.json())
     .then(data => {
-      btn.textContent = 'Tailored Points';
+      btn.textContent = 'Resume Tips';
       btn.disabled = false;
       if (data.ok && data.points) {
-        list.innerHTML = data.points.map(p => `<li class="flex items-start"><span class="text-amber-600 mr-2">&#8226;</span><span>${p}</span></li>`).join('');
+        list.innerHTML = data.points.map(p => `<li class="flex items-start"><span class="text-amber-600 mr-2">•</span><span>${p}</span></li>`).join('');
         panel.classList.remove('hidden');
       }
     })
     .catch(err => {
-      btn.textContent = 'Tailored Points';
+      btn.textContent = 'Resume Tips';
       btn.disabled = false;
       console.error('Error fetching tailored points:', err);
     });

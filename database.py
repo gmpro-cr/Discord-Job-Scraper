@@ -106,6 +106,13 @@ def init_db():
         except sqlite3.OperationalError:
             pass
 
+    # User actions: hide job
+    for col in ["hidden INTEGER DEFAULT 0"]:
+        try:
+            cursor.execute(f"ALTER TABLE job_listings ADD COLUMN {col}")
+        except sqlite3.OperationalError:
+            pass
+
     conn.commit()
     conn.close()
     logger.info("Database initialized at %s", DB_PATH)
@@ -152,6 +159,15 @@ def insert_job(job):
     )
     if job_exists(job_id):
         logger.debug("Job %s already exists, skipping insert", job_id)
+        return False
+
+    # Cross-portal dedup: same company + similar role from a different portal
+    similar_id = find_similar_job(job["company"], job["role"], job.get("location", ""))
+    if similar_id and similar_id != job_id:
+        logger.debug(
+            "Cross-portal duplicate detected: '%s' at '%s' (existing=%s)",
+            job["role"], job["company"], similar_id,
+        )
         return False
 
     # Normalize location at insert time
@@ -576,6 +592,76 @@ def update_job_contacts(job_id, poster_name, poster_email, poster_phone, poster_
     conn.close()
 
 
+def dedup_jobs():
+    """
+    Remove cross-portal / cross-session duplicates from the database.
+    For each (company, role) pair, keeps the highest-scoring entry
+    (earliest date_found as tiebreaker).  Returns number of rows deleted.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT job_id,
+               LOWER(TRIM(company)) AS co,
+               LOWER(TRIM(role))    AS ro,
+               relevance_score,
+               date_found
+        FROM job_listings
+        ORDER BY relevance_score DESC, date_found ASC
+    """)
+    rows = cursor.fetchall()
+
+    seen = set()
+    to_delete = []
+    for row in rows:
+        key = (row["co"], row["ro"])
+        if key not in seen:
+            seen.add(key)
+        else:
+            to_delete.append(row["job_id"])
+
+    deleted = 0
+    if to_delete:
+        chunk_size = 500
+        for i in range(0, len(to_delete), chunk_size):
+            batch = to_delete[i : i + chunk_size]
+            placeholders = ",".join("?" for _ in batch)
+            cursor.execute(
+                f"DELETE FROM job_listings WHERE job_id IN ({placeholders})", batch
+            )
+            deleted += cursor.rowcount
+        conn.commit()
+
+    conn.close()
+    logger.info("dedup_jobs: removed %d duplicate job listings", deleted)
+    return deleted
+
+
+def hide_job(job_id, hidden=True):
+    """Mark a job as hidden (True) or visible again (False)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE job_listings SET hidden = ? WHERE job_id = ?",
+        (1 if hidden else 0, job_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_job_notes(job_id, notes):
+    """Update the user notes field for a job without touching other columns."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE job_listings SET user_notes = ? WHERE job_id = ?",
+        (notes, job_id),
+    )
+    conn.commit()
+    conn.close()
+
+
 def get_distinct_locations():
     """Get sorted list of distinct non-null locations from job listings."""
     conn = get_connection()
@@ -620,6 +706,21 @@ _CITY_PATTERNS = {
     "Remote": ["remote", "work from home", "wfh", "anywhere"],
     "India": ["india"],
 }
+
+
+# Canonical names from _CITY_PATTERNS that are clearly outside India/Remote.
+# Used by _build_jobs_query to hide international noise by default.
+_INTERNATIONAL_CANONICALS = {"London", "US - Remote", "Singapore", "Dubai / UAE"}
+
+# Raw-string fragments that indicate a non-India location when a job's location
+# wasn't normalized to a canonical name (e.g. "Cincinnati, OH").
+_INTERNATIONAL_KEYWORDS = [
+    "cincinnati", "chicago", "ohio", "new york", "los angeles",
+    "san francisco", "seattle", "toronto", "sydney", "melbourne",
+    "united states", " usa", " uk ", "united kingdom", "germany",
+    "france", "paris", "amsterdam", "netherlands", "canada",
+    "australia", "new zealand",
+]
 
 
 def normalize_location(raw_location):

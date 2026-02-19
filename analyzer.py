@@ -282,27 +282,11 @@ def detect_company_type(text):
 
 def extract_skills(text, max_skills=8):
     """Extract key skills from job description text."""
-    skill_patterns = [
-        r"SQL", r"Python", r"Excel", r"Tableau", r"Power BI", r"Jira",
-        r"Figma", r"Analytics", r"A/B testing", r"Data analysis",
-        r"Product strategy", r"Roadmap", r"Agile", r"Scrum",
-        r"Stakeholder management", r"User research", r"UX",
-        r"API", r"REST", r"Microservices", r"AWS", r"GCP", r"Azure",
-        r"Machine Learning", r"AI", r"NLP", r"React", r"JavaScript",
-        r"TypeScript", r"Node\.?js", r"Java", r"Go", r"Kubernetes",
-        r"Docker", r"CI/CD", r"Git", r"MongoDB", r"PostgreSQL",
-        r"Redis", r"Kafka", r"Spark", r"Hadoop",
-    ]
     found = []
-    for pattern in skill_patterns:
-        if re.search(pattern, text, re.IGNORECASE):
-            # Use the pattern as-is for display, clean up regex chars
-            clean = pattern.replace(r"\.", ".").replace(r"\.?", "")
-            if clean not in found:
-                found.append(clean)
-        if len(found) >= max_skills:
-            break
-    return found
+    for pattern, display in _SKILL_PATTERNS.items():
+        if re.search(pattern, text, re.IGNORECASE) and display not in found:
+            found.append(display)
+    return found[:max_skills] if max_skills else found
 
 
 def keyword_score(job, preferences):
@@ -967,23 +951,101 @@ from datetime import datetime as _datetime
 
 CV_DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cv_data.json")
 
-# Extended skill list specifically for CV scanning (broader than JD extraction)
-_CV_SKILL_PATTERNS = [
-    r"SQL", r"Python", r"Excel", r"Tableau", r"Power BI", r"Jira", r"Confluence",
-    r"Figma", r"Analytics", r"A/B [Tt]esting", r"Data [Aa]nalysis", r"Data Science",
-    r"Product [Ss]trategy", r"Roadmap", r"Agile", r"Scrum", r"Kanban",
-    r"Stakeholder [Mm]anagement", r"User [Rr]esearch", r"UX", r"UI",
-    r"API", r"REST", r"Microservices", r"AWS", r"GCP", r"Azure", r"Cloud",
-    r"Machine Learning", r"AI", r"NLP", r"Deep Learning",
-    r"React", r"JavaScript", r"TypeScript", r"Node\.?[Jj][Ss]", r"Java",
-    r"Go", r"Kubernetes", r"Docker", r"CI/CD", r"Git", r"GitHub",
-    r"MongoDB", r"PostgreSQL", r"Redis", r"Kafka", r"Spark", r"Hadoop",
-    r"Fintech", r"Payments", r"UPI", r"Lending", r"Credit", r"Banking",
-    r"Risk [Mm]anagement", r"Compliance", r"P&L", r"Revenue",
-    r"Cross[\s-]functional", r"Leadership", r"Mentoring", r"Strategy",
-    r"OKR", r"KPI", r"Metrics", r"Growth", r"Retention", r"Conversion",
-    r"B2B", r"B2C", r"SaaS", r"Mobile", r"iOS", r"Android",
-]
+# Shared skill pattern dict: {regex_pattern: display_label}
+# Used for both CV parsing and JD extraction — consistent names ensure matching works.
+# PM/product skills are listed first so they get priority when truncating to max_skills.
+_SKILL_PATTERNS = {
+    # --- PM / Product Management ---
+    r"Product [Ss]trategy": "Product Strategy",
+    r"(?:Product\s+)?Roadmap": "Roadmap",
+    r"Stakeholder [Mm]anagement": "Stakeholder Management",
+    r"User [Rr]esearch": "User Research",
+    r"A/B [Tt]esting": "A/B Testing",
+    r"Data [Aa]nalysis": "Data Analysis",
+    r"Product Owner": "Product Owner",
+    r"Prioriti[sz]ation": "Prioritization",
+    r"\bPRD\b": "PRD",
+    r"Go[\s-]to[\s-][Mm]arket|\bGTM\b": "Go-to-Market",
+    r"Wireframe": "Wireframing",
+    r"Prototyp": "Prototyping",
+    r"\bOKR\b": "OKR",
+    r"\bKPI\b": "KPI",
+    r"Agile": "Agile",
+    r"Scrum": "Scrum",
+    r"Kanban": "Kanban",
+    r"Cross[\s-]functional": "Cross-functional",
+    r"Leadership": "Leadership",
+    r"Mentoring": "Mentoring",
+    r"Metrics": "Metrics",
+    r"Analytics": "Analytics",
+    r"\bUX\b": "UX",
+    r"\bUI\b": "UI",
+    r"Figma": "Figma",
+    r"Jira": "Jira",
+    r"Confluence": "Confluence",
+    r"\bB2B\b": "B2B",
+    r"\bB2C\b": "B2C",
+    r"\bSaaS\b": "SaaS",
+    r"Strategy": "Strategy",
+    r"Growth": "Growth",
+    r"Retention": "Retention",
+    r"Conversion": "Conversion",
+    r"Mobile": "Mobile",
+    r"\biOS\b": "iOS",
+    r"Android": "Android",
+    # --- Data / Analytics tools ---
+    r"SQL": "SQL",
+    r"Python": "Python",
+    r"Excel": "Excel",
+    r"Tableau": "Tableau",
+    r"Power BI": "Power BI",
+    r"Data Science": "Data Science",
+    # --- Domain / Finance ---
+    r"Fintech": "Fintech",
+    r"Payments": "Payments",
+    r"\bUPI\b": "UPI",
+    r"Lending": "Lending",
+    r"Credit": "Credit",
+    r"Banking": "Banking",
+    r"Risk [Mm]anagement": "Risk Management",
+    r"Compliance": "Compliance",
+    r"\bP&L\b": "P&L",
+    r"Revenue": "Revenue",
+    # --- Cloud / Infrastructure ---
+    r"\bAPI\b": "API",
+    r"\bREST\b": "REST",
+    r"Microservices": "Microservices",
+    r"\bAWS\b": "AWS",
+    r"\bGCP\b": "GCP",
+    r"Azure": "Azure",
+    r"Cloud": "Cloud",
+    r"Kubernetes": "Kubernetes",
+    r"Docker": "Docker",
+    r"CI/CD": "CI/CD",
+    r"\bGit\b": "Git",
+    r"GitHub": "GitHub",
+    # --- Languages / Frameworks ---
+    r"Machine Learning": "Machine Learning",
+    r"Deep Learning": "Deep Learning",
+    r"\bAI\b": "AI",
+    r"\bNLP\b": "NLP",
+    r"React": "React",
+    r"JavaScript": "JavaScript",
+    r"TypeScript": "TypeScript",
+    r"Node\.?[Jj][Ss]": "Node.js",
+    r"Java\b": "Java",
+    r"\bGo\b": "Go",
+    # --- Databases ---
+    r"MongoDB": "MongoDB",
+    r"PostgreSQL": "PostgreSQL",
+    r"Redis": "Redis",
+    r"Kafka": "Kafka",
+    r"Spark": "Spark",
+    r"Hadoop": "Hadoop",
+}
+
+# Backward-compatible alias used by parse_cv_text()
+_CV_SKILL_PATTERNS = _SKILL_PATTERNS
 
 
 def parse_cv_text(text):
@@ -1000,12 +1062,9 @@ def parse_cv_text(text):
         return {"skills": [], "raw_text": text or "", "uploaded_at": _datetime.now().isoformat()}
 
     found_skills = []
-    for pattern in _CV_SKILL_PATTERNS:
+    for pattern, display in _CV_SKILL_PATTERNS.items():
         if re.search(pattern, text, re.IGNORECASE):
-            clean = re.sub(r'[\[\]\\]', '', pattern).replace(r"\.", ".").replace(r"\.?", "").strip()
-            # Use a cleaner display name
-            display = re.sub(r'\([^)]+\)', '', clean).strip()
-            if display and display not in found_skills:
+            if display not in found_skills:
                 found_skills.append(display)
 
     return {

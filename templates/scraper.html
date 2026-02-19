@@ -15,6 +15,16 @@
             class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 text-lg">
       Run Scraper Now
     </button>
+    <p id="last-run-info" class="hidden mt-3 text-sm text-gray-400"></p>
+    <p id="next-run-info" class="hidden mt-1 text-sm text-gray-400"></p>
+    <div class="mt-4 pt-4 border-t border-gray-100">
+      <button onclick="runDedup()" id="dedup-btn"
+              class="px-4 py-2 bg-white text-gray-600 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50">
+        Clean up duplicates
+      </button>
+      <p class="text-xs text-gray-400 mt-1">Removes duplicate jobs keeping the highest-scoring copy</p>
+      <p id="dedup-result" class="hidden mt-2 text-sm text-green-600 font-medium"></p>
+    </div>
   </div>
 
   <!-- Progress Section (hidden initially) -->
@@ -179,16 +189,62 @@ function pollStatus() {
     .catch(err => console.error('Poll error:', err));
 }
 
-// Check if already running on page load
-fetch('/api/scraper/status')
-  .then(r => r.json())
-  .then(s => {
-    if (s.running) {
-      document.getElementById('start-section').classList.add('hidden');
-      document.getElementById('progress-section').classList.remove('hidden');
-      pollInterval = setInterval(pollStatus, 2000);
-      pollStatus();
+function toRelative(isoStr) {
+  if (!isoStr) return null;
+  const diff = Math.floor((Date.now() - new Date(isoStr).getTime()) / 60000);
+  if (diff < 1) return 'just now';
+  if (diff < 60) return `${diff} minute${diff === 1 ? '' : 's'} ago`;
+  const h = Math.floor(diff / 60);
+  if (h < 24) return `${h} hour${h === 1 ? '' : 's'} ago`;
+  const d = Math.floor(h / 24);
+  return `${d} day${d === 1 ? '' : 's'} ago`;
+}
+
+function runDedup() {
+  const btn = document.getElementById('dedup-btn');
+  const result = document.getElementById('dedup-result');
+  btn.disabled = true;
+  btn.textContent = 'Running...';
+  fetch('/api/admin/dedup', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.textContent = 'Clean up duplicates';
+      result.classList.remove('hidden');
+      result.textContent = data.deleted > 0
+        ? `Removed ${data.deleted} duplicate job${data.deleted !== 1 ? 's' : ''}.`
+        : 'No duplicates found.';
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.textContent = 'Clean up duplicates';
+      alert('Error: ' + err.message);
+    });
+}
+
+// Check if already running on page load; show last-run and next-run info
+Promise.all([
+  fetch('/api/scraper/status').then(r => r.json()),
+  fetch('/api/scheduler/status').then(r => r.json()),
+]).then(([s, sched]) => {
+  if (s.running) {
+    document.getElementById('start-section').classList.add('hidden');
+    document.getElementById('progress-section').classList.remove('hidden');
+    pollInterval = setInterval(pollStatus, 2000);
+    pollStatus();
+  } else {
+    if (s.finished_at) {
+      const rel = toRelative(s.finished_at);
+      const el = document.getElementById('last-run-info');
+      el.textContent = `Last run: ${rel}`;
+      el.classList.remove('hidden');
     }
-  });
+    if (sched.next_run_human) {
+      const el = document.getElementById('next-run-info');
+      el.textContent = `Next scheduled run: ${sched.next_run_human}`;
+      el.classList.remove('hidden');
+    }
+  }
+}).catch(() => {});
 </script>
 {% endblock %}

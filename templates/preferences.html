@@ -124,47 +124,50 @@
           </div>
         </div>
 
-        <!-- Discord Notifications -->
+        <!-- Telegram Notifications -->
         <div class="border-t border-gray-200 pt-5 mt-5">
-          <h3 class="text-sm font-semibold text-gray-900 mb-3">Discord Notifications</h3>
-          <p class="text-xs text-gray-400 mb-4">Get real-time job alerts in your Discord channel via webhook.
-            Create a webhook in your channel: Server Settings &rarr; Integrations &rarr; Webhooks &rarr; New Webhook.</p>
+          <h3 class="text-sm font-semibold text-gray-900 mb-3">Telegram Notifications</h3>
+          <p class="text-xs text-gray-400 mb-4">Get real-time job alerts and an interactive bot on Telegram.
+            Create a bot via <a href="https://t.me/BotFather" target="_blank" rel="noopener" class="text-indigo-600 underline">@BotFather</a> on Telegram.</p>
 
           <div class="space-y-4">
             <div>
-              <label for="discord_webhook_url" class="block text-sm font-medium text-gray-700 mb-1">Webhook URL</label>
-              <input type="text" id="discord_webhook_url" name="discord_webhook_url"
-                     value="{{ prefs.get('discord_webhook_url', '') }}" placeholder="https://discord.com/api/webhooks/..."
-                     class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2">
-              <p class="text-xs text-gray-400 mt-1">Paste the full webhook URL from your Discord channel settings</p>
-            </div>
-
-            <div>
-              <label for="discord_min_score" class="block text-sm font-medium text-gray-700 mb-1">Minimum Score for Alerts</label>
-              <input type="number" id="discord_min_score" name="discord_min_score" min="0" max="100"
-                     value="{{ prefs.get('discord_min_score', 65) }}"
-                     class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2">
-              <p class="text-xs text-gray-400 mt-1">Only jobs scoring at or above this threshold will be sent to Discord (default: 65)</p>
-            </div>
-
-            <div>
-              <label for="discord_bot_token" class="block text-sm font-medium text-gray-700 mb-1">Bot Token (Interactive Bot)</label>
-              {% if env_credentials.get('discord_bot_token') %}
+              <label for="telegram_bot_token" class="block text-sm font-medium text-gray-700 mb-1">Bot Token</label>
+              {% if env_credentials.get('telegram_bot_token') %}
               <div class="w-full rounded-md bg-green-50 border border-green-200 text-green-700 text-sm p-2">
-                Set via environment variable (DISCORD_BOT_TOKEN)
+                Set via environment variable (TELEGRAM_BOT_TOKEN)
               </div>
               {% else %}
-              <input type="password" id="discord_bot_token" name="discord_bot_token"
-                     value="{{ prefs.get('discord_bot_token', '') }}" placeholder="your-bot-token"
+              <input type="password" id="telegram_bot_token" name="telegram_bot_token"
+                     value="{{ prefs.get('telegram_bot_token', '') }}" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
                      class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2">
               {% endif %}
               <p class="text-xs text-gray-400 mt-1">
-                Enables an interactive bot you can message (<code>!jobs</code>, <code>!search</code>, <code>!stats</code>, <code>!scrape</code>).
-                Get a token from the
-                <a href="https://discord.com/developers/applications" target="_blank" rel="noopener" class="text-indigo-600 underline">Discord Developer Portal</a>:
-                New Application &rarr; Bot &rarr; Reset Token. Enable <strong>Message Content Intent</strong> under Privileged Gateway Intents.
+                Get a token from <a href="https://t.me/BotFather" target="_blank" rel="noopener" class="text-indigo-600 underline">@BotFather</a>:
+                send <code>/newbot</code>, follow the prompts, and copy the token.
+                Also enables an interactive bot you can message with natural language queries, <code>/stats</code>, <code>/scrape</code>.
                 Requires app restart after saving.
               </p>
+            </div>
+
+            <div>
+              <label for="telegram_chat_id" class="block text-sm font-medium text-gray-700 mb-1">Chat ID</label>
+              <input type="text" id="telegram_chat_id" name="telegram_chat_id"
+                     value="{{ prefs.get('telegram_chat_id', '') }}" placeholder="123456789"
+                     class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2">
+              <p class="text-xs text-gray-400 mt-1">
+                Your Telegram chat ID for receiving alerts. Send a message to
+                <a href="https://t.me/userinfobot" target="_blank" rel="noopener" class="text-indigo-600 underline">@userinfobot</a>
+                to find your ID. Can also be a group chat ID (starts with <code>-</code>).
+              </p>
+            </div>
+
+            <div>
+              <label for="telegram_min_score" class="block text-sm font-medium text-gray-700 mb-1">Minimum Score for Alerts</label>
+              <input type="number" id="telegram_min_score" name="telegram_min_score" min="0" max="100"
+                     value="{{ prefs.get('telegram_min_score', 65) }}"
+                     class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2">
+              <p class="text-xs text-gray-400 mt-1">Only jobs scoring at or above this threshold will be sent to Telegram (default: 65)</p>
             </div>
           </div>
         </div>

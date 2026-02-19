@@ -35,6 +35,8 @@ from database import (
     get_normalized_locations, normalize_location, _CITY_PATTERNS,
     get_application_pipeline_stats, get_best_matching_categories,
     get_application_activity, get_recommended_actions,
+    hide_job, update_job_notes, dedup_jobs,
+    _INTERNATIONAL_CANONICALS, _INTERNATIONAL_KEYWORDS,
 )
 from scrapers import scrape_all_portals
 from analyzer import analyze_jobs, generate_tailored_points, parse_nlp_query, parse_cv_text, cv_score, compute_gap_analysis, load_cv_data, save_cv_data, CV_DATA_PATH
@@ -137,23 +139,53 @@ def _scheduled_pipeline_run():
     _run_scraper_pipeline()
 
 
+def _parse_digest_time(time_str):
+    """Parse a human-readable time string into (hour, minute).
+    Accepts '6:00 AM', '11:00 PM', '18:30', '6.00 AM'.
+    Falls back to (11, 0) on any parse failure.
+    """
+    import re as _re
+    s = (time_str or "").strip()
+    # Normalize period separator: "11.00 AM" → "11:00 AM"
+    s = _re.sub(r"(\d+)\.(\d+)", r"\1:\2", s)
+    # 12-hour: "6:00 AM", "11:30 PM"
+    m = _re.match(r"(\d{1,2}):(\d{2})\s*(AM|PM)", s, _re.IGNORECASE)
+    if m:
+        h, mn, period = int(m.group(1)), int(m.group(2)), m.group(3).upper()
+        if period == "PM" and h != 12:
+            h += 12
+        elif period == "AM" and h == 12:
+            h = 0
+        return h, mn
+    # 24-hour: "18:30", "9:00"
+    m = _re.match(r"(\d{1,2}):(\d{2})", s)
+    if m:
+        return int(m.group(1)), int(m.group(2))
+    logger.warning("Could not parse digest_time '%s', defaulting to 11:00 AM", time_str)
+    return 11, 0
+
+
 def setup_background_scheduler():
-    """Create and start the APScheduler BackgroundScheduler for daily 11 AM runs."""
+    """Create and start the APScheduler BackgroundScheduler using the user's digest_time."""
     global _scheduler
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
         from apscheduler.triggers.cron import CronTrigger
 
+        prefs = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
+        digest_time = prefs.get("digest_time", "11:00 AM")
+        hour, minute = _parse_digest_time(digest_time)
+
         _scheduler = BackgroundScheduler(daemon=True)
         _scheduler.add_job(
             _scheduled_pipeline_run,
-            trigger=CronTrigger(hour=11, minute=0),
+            trigger=CronTrigger(hour=hour, minute=minute),
             id="daily_pipeline",
-            name="Daily job scraper pipeline at 11:00 AM",
+            name=f"Daily job scraper pipeline at {digest_time}",
             replace_existing=True,
         )
         _scheduler.start()
-        logger.info("Background scheduler started - daily pipeline at 11:00 AM")
+        logger.info("Background scheduler started - daily pipeline at %02d:%02d (%s)", hour, minute, digest_time)
     except ImportError:
         logger.warning("APScheduler not installed - daily scheduling disabled")
     except Exception as e:
@@ -490,16 +522,34 @@ def _build_jobs_query(filters):
     applied = filters.get("applied", "")
     location = filters.get("location", "")
     recency = filters.get("recency", "")
-    min_score = filters.get("min_score", "40")
+    min_score = filters.get("min_score", "60")
     experience = filters.get("experience", "")
     salary_min = filters.get("salary_min", "")
     salary_max = filters.get("salary_max", "")
+
+    # Always exclude hidden jobs (hidden = 1) unless explicitly requested
+    if not filters.get("show_hidden"):
+        conditions.append("(hidden = 0 OR hidden IS NULL)")
+
+    # Exclude international locations by default unless a specific location is
+    # chosen (in which case the user knows what they're filtering to) or
+    # show_international is explicitly set.
+    if not filters.get("location") and not filters.get("show_international"):
+        intl = list(_INTERNATIONAL_CANONICALS)
+        intl_ph = ",".join("?" for _ in intl)
+        kw_conds = " OR ".join("LOWER(location) LIKE ?" for _ in _INTERNATIONAL_KEYWORDS)
+        conditions.append(
+            f"(location IS NULL OR location = '' OR "
+            f"(location NOT IN ({intl_ph}) AND NOT ({kw_conds})))"
+        )
+        params.extend(intl)
+        params.extend(f"%{kw}%" for kw in _INTERNATIONAL_KEYWORDS)
 
     # Default minimum score filter (0 = show all)
     try:
         min_score_val = int(min_score)
     except (ValueError, TypeError):
-        min_score_val = 40
+        min_score_val = 60
     if min_score_val > 0:
         conditions.append("relevance_score >= ?")
         params.append(min_score_val)
@@ -607,7 +657,7 @@ def jobs():
         "applied": request.args.get("applied", ""),
         "location": request.args.get("location", ""),
         "recency": request.args.get("recency", ""),
-        "min_score": request.args.get("min_score", "40"),
+        "min_score": request.args.get("min_score", "60"),
         "experience": request.args.get("experience", ""),
         "salary_min": request.args.get("salary_min", ""),
         "salary_max": request.args.get("salary_max", ""),
@@ -646,11 +696,13 @@ def jobs():
     # Get normalized locations for filter dropdown (canonical name + count)
     normalized_locs = get_normalized_locations()
 
+    clean_filters = {k: v for k, v in filters.items() if v and v != "0"}
+
     return render_template(
         "jobs.html",
         jobs=rows, total=total, page=page, total_pages=total_pages,
         portals=portals, locations=normalized_locs,
-        filters=filters,
+        filters=filters, clean_filters=clean_filters,
     )
 
 
@@ -728,10 +780,42 @@ def update_job_status(job_id):
     return jsonify({"ok": True, "job_id": job_id, "status": status})
 
 
+@app.route("/api/jobs/<job_id>/hide", methods=["POST"])
+def hide_job_route(job_id):
+    """Hide or unhide a job. Body: {hidden: true/false}"""
+    data = request.get_json(silent=True) or {}
+    is_hidden = bool(data.get("hidden", True))
+    hide_job(job_id, is_hidden)
+    return jsonify({"ok": True, "job_id": job_id, "hidden": is_hidden})
+
+
+@app.route("/api/jobs/<job_id>/notes", methods=["POST"])
+def save_job_notes(job_id):
+    """Save user notes for a job without changing other fields."""
+    data = request.get_json(silent=True) or {}
+    notes = data.get("notes", "")
+    update_job_notes(job_id, notes)
+    return jsonify({"ok": True, "job_id": job_id})
+
+
+@app.route("/api/admin/dedup", methods=["POST"])
+def admin_dedup():
+    """Remove cross-portal duplicate jobs, keeping highest-scoring copy."""
+    deleted = dedup_jobs()
+    return jsonify({"ok": True, "deleted": deleted})
+
+
 @app.route("/preferences", methods=["GET", "POST"])
 def preferences():
     config = load_config()
     if request.method == "POST":
+        # Normalize digest_time: "11.00 AM" → "11:00 AM"
+        raw_dt = request.form.get("digest_time", "11:00 AM").strip()
+        if "." in raw_dt:
+            dt_parts = raw_dt.split(" ", 1)
+            dt_parts[0] = dt_parts[0].replace(".", ":")
+            raw_dt = " ".join(dt_parts)
+
         prefs = {
             "job_titles": [
                 t.strip() for t in request.form.get("job_titles", "").split(",") if t.strip()
@@ -746,7 +830,7 @@ def preferences():
                 s.strip() for s in request.form.get("transferable_skills", "").split(",") if s.strip()
             ],
             "top_jobs_per_digest": max(3, min(10, int(request.form.get("top_jobs", "5")))),
-            "digest_time": request.form.get("digest_time", "6:00 AM").strip(),
+            "digest_time": raw_dt,
             "email": request.form.get("email", "").strip(),
             "gmail_address": request.form.get("gmail_address", "").strip(),
             "gmail_app_password": request.form.get("gmail_app_password", "").strip(),
@@ -760,6 +844,9 @@ def preferences():
         return redirect(url_for("preferences"))
 
     prefs = load_preferences() or DEFAULT_PREFS.copy()
+    # Pre-populate transferable_skills from defaults if the user hasn't set them yet
+    if not prefs.get("transferable_skills"):
+        prefs["transferable_skills"] = DEFAULT_PREFS["transferable_skills"]
     # Tell the template which credential fields are set via env vars
     env_credentials = {
         "gmail_app_password": bool(os.environ.get("GMAIL_APP_PASSWORD")),

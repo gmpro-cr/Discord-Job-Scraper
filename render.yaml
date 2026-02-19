@@ -20,11 +20,11 @@ services:
         sync: false
       - key: EMAIL_RECIPIENT
         sync: false
-      - key: DISCORD_WEBHOOK_URL
+      - key: TELEGRAM_BOT_TOKEN
         sync: false
-      - key: DISCORD_BOT_TOKEN
+      - key: TELEGRAM_CHAT_ID
         sync: false
-      - key: DISCORD_MIN_SCORE
+      - key: TELEGRAM_MIN_SCORE
         value: "65"
       - key: APOLLO_API_KEY
         sync: false
