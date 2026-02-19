@@ -8,22 +8,22 @@
 </div>
 
 <!-- Stat Cards -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-  <div class="bg-white rounded-lg shadow p-5 border-l-4 border-indigo-500">
-    <p class="text-sm font-medium text-gray-500">Total Jobs</p>
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+  <div class="stat-card">
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Total Jobs</p>
     <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.total_jobs }}</p>
   </div>
-  <div class="bg-white rounded-lg shadow p-5 border-l-4 border-green-500">
-    <p class="text-sm font-medium text-gray-500">Found Today</p>
+  <div class="stat-card">
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Today</p>
     <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.jobs_today }}</p>
   </div>
-  <div class="bg-white rounded-lg shadow p-5 border-l-4 border-blue-500">
-    <p class="text-sm font-medium text-gray-500">This Week</p>
+  <div class="stat-card">
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">This Week</p>
     <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.jobs_this_week }}</p>
   </div>
-  <div class="bg-white rounded-lg shadow p-5 border-l-4 border-amber-500">
-    <p class="text-sm font-medium text-gray-500">Applied / Saved</p>
-    <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.applied_count }} / {{ stats.saved_count }}</p>
+  <div class="stat-card">
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Applied / Saved</p>
+    <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.applied_count }}<span class="text-lg text-gray-400">/{{ stats.saved_count }}</span></p>
   </div>
 </div>
 
@@ -245,14 +245,20 @@
 
 <!-- Quick Actions -->
 <div class="mt-8 flex flex-wrap gap-3">
-  <a href="{{ url_for('scraper') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700">
+  <a href="{{ url_for('scraper') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+    </svg>
     Run Scraper
   </a>
-  <a href="{{ url_for('jobs') }}" class="inline-flex items-center px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50">
+  <a href="{{ url_for('jobs') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50">
     Browse Jobs
   </a>
-  <a href="{{ url_for('digests') }}" class="inline-flex items-center px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50">
+  <a href="{{ url_for('digests') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50">
     View Digests
+  </a>
+  <a href="{{ url_for('cv_page') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50">
+    Upload CV
   </a>
 </div>
 {% endblock %}
