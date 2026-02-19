@@ -25,8 +25,7 @@
       "enabled": true,
       "base_url": "https://hiring.cafe",
       "timeout": 30,
-      "use_selenium": true,
-      "max_pages": 2
+      "page_size": 50
     },
     "angellist": {
       "enabled": true,

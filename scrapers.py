@@ -798,92 +798,8 @@ def scrape_naukri(job_titles, locations, config):
     return jobs
 
 
-def _parse_hiringcafe_nextdata(soup, base_url):
-    """Extract jobs from HiringCafe's __NEXT_DATA__ or JSON-LD."""
-    jobs = []
-
-    # Strategy 1: application/ld+json
-    for script in soup.select('script[type="application/ld+json"]'):
-        try:
-            data = json.loads(script.string or "")
-            items = data if isinstance(data, list) else [data]
-            for item in items:
-                if item.get("@type") == "JobPosting" and item.get("title"):
-                    company = (item.get("hiringOrganization") or {}).get("name", "")
-                    loc = ""
-                    jl = item.get("jobLocation")
-                    if isinstance(jl, list) and jl:
-                        loc = jl[0].get("address", {}).get("addressLocality", "")
-                    elif isinstance(jl, dict):
-                        loc = jl.get("address", {}).get("addressLocality", "")
-                    if item["title"] and company:
-                        jobs.append({
-                            "portal": "HiringCafe",
-                            "company": company,
-                            "role": item["title"],
-                            "salary": None,
-                            "salary_currency": "INR",
-                            "location": loc,
-                            "job_description": (item.get("description") or "")[:500],
-                            "apply_url": item.get("url", ""),
-                            "date_posted": item.get("datePosted", ""),
-                        })
-        except (json.JSONDecodeError, TypeError):
-            continue
-
-    if jobs:
-        return jobs
-
-    # Strategy 2: __NEXT_DATA__
-    next_script = soup.select_one('script#__NEXT_DATA__')
-    if next_script:
-        try:
-            next_data = json.loads(next_script.string or "")
-            page_props = next_data.get("props", {}).get("pageProps", {})
-
-            # Walk common keys where job data might live
-            for key in ("jobs", "results", "searchResults", "listings", "data", "items"):
-                raw = page_props.get(key)
-                if not raw:
-                    # Also check one level deeper
-                    for v in page_props.values():
-                        if isinstance(v, dict):
-                            raw = v.get(key)
-                            if raw:
-                                break
-                if not raw:
-                    continue
-                items = raw if isinstance(raw, list) else raw.get("jobs", raw.get("data", raw.get("results", [])))
-                if not isinstance(items, list):
-                    continue
-                for item in items:
-                    role = item.get("title") or item.get("jobTitle") or item.get("name") or item.get("position") or ""
-                    company = item.get("company") or item.get("companyName") or item.get("company_name") or ""
-                    if isinstance(company, dict):
-                        company = company.get("name", "")
-                    if role and company:
-                        link = item.get("url") or item.get("apply_url") or item.get("slug", "")
-                        if link and not link.startswith("http"):
-                            link = f"{base_url}/{link.lstrip('/')}"
-                        jobs.append({
-                            "portal": "HiringCafe",
-                            "company": company,
-                            "role": role,
-                            "salary": item.get("salary") or item.get("compensation"),
-                            "salary_currency": "INR",
-                            "location": item.get("location") or item.get("city") or "",
-                            "job_description": (item.get("description") or item.get("snippet") or "")[:500],
-                            "apply_url": link,
-                            "date_posted": item.get("datePosted") or item.get("created_at") or "",
-                        })
-        except (json.JSONDecodeError, TypeError, AttributeError):
-            pass
-
-    return jobs
-
-
 def scrape_hiringcafe(job_titles, locations, config):
-    """Scrape HiringCafe (startup hiring platform)."""
+    """Scrape HiringCafe via its GET JSON API at /api/search-jobs?q=..."""
     portal_config = config.get("portals", {}).get("hiringcafe", {})
     if not portal_config.get("enabled", True):
         logger.info("HiringCafe scraping disabled in config")
@@ -891,75 +807,94 @@ def scrape_hiringcafe(job_titles, locations, config):
 
     jobs = []
     base_url = portal_config.get("base_url", "https://hiring.cafe")
-    max_pages = portal_config.get("max_pages", 2)
-    use_selenium = portal_config.get("use_selenium", True)
+    api_url = f"{base_url}/api/search-jobs"
+    timeout = portal_config.get("timeout", 30)
+    page_size = portal_config.get("page_size", 50)
 
-    # CSS selectors for job cards on HiringCafe (used for both Selenium wait and parsing)
-    card_selector = (
-        "div[class*='job-card'], div[class*='job-listing'], "
-        "div[class*='JobCard'], div[class*='listing-card'], "
-        "article[class*='job'], a[class*='job']"
-    )
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+        ),
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://hiring.cafe/",
+    }
 
     for title in job_titles:
-        url = f"{base_url}/search?q={quote_plus(title)}"
-        logger.info("Scraping HiringCafe: %s", title)
-
-        html = fetch_url(url, config, use_selenium=use_selenium, wait_selector=card_selector)
-        if not html:
-            continue
+        logger.info("Scraping HiringCafe API: %s", title)
 
         try:
-            soup = BeautifulSoup(html, "lxml")
+            resp = requests.get(
+                api_url,
+                params={"q": title, "size": page_size},
+                headers=headers,
+                timeout=timeout,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as e:
+            logger.warning("HiringCafe API request failed for '%s': %s", title, e)
+            random_delay(config)
+            continue
 
-            # Try structured data first (JSON-LD / __NEXT_DATA__)
-            json_jobs = _parse_hiringcafe_nextdata(soup, base_url)
-            if json_jobs:
-                jobs.extend(json_jobs)
-                logger.info("HiringCafe: extracted %d jobs via JSON from %s", len(json_jobs), url)
-                random_delay(config)
+        raw_jobs = data.get("results") or data.get("jobs") or (data if isinstance(data, list) else [])
+        if not isinstance(raw_jobs, list):
+            logger.warning("HiringCafe: unexpected response shape for '%s'", title)
+            random_delay(config)
+            continue
+
+        for item in raw_jobs:
+            ji = item.get("job_information") or {}
+            v5 = item.get("v5_processed_job_data") or {}
+            ec = item.get("enriched_company_data") or {}
+
+            role = (ji.get("title") or v5.get("core_job_title") or "").strip()
+            company = (ec.get("name") or v5.get("company_name") or "").strip()
+            if not role or not company:
                 continue
 
-            # Fallback: CSS card parsing on rendered DOM
-            cards = soup.select(card_selector)
+            # Location: prefer formatted_workplace_location, fall back to cities list
+            loc = v5.get("formatted_workplace_location") or ""
+            if not loc:
+                cities = v5.get("workplace_cities") or []
+                loc = ", ".join(cities[:2]) if cities else ""
 
-            for card in cards:
+            # Salary: yearly range if present
+            sal_min = v5.get("yearly_min_compensation")
+            sal_max = v5.get("yearly_max_compensation")
+            if sal_min or sal_max:
+                salary = f"{sal_min or ''}-{sal_max or ''}".strip("-")
+            else:
+                salary = None
+            currency = v5.get("listed_compensation_currency") or "USD"
+
+            # Strip HTML from description
+            raw_desc = ji.get("description") or ""
+            if raw_desc:
                 try:
-                    title_el = card.select_one("h2, h3, a[class*='title'], span[class*='title']")
-                    company_el = card.select_one("span[class*='company'], div[class*='company'], p[class*='company']")
-                    location_el = card.select_one("span[class*='location'], div[class*='location']")
-                    salary_el = card.select_one("span[class*='salary'], div[class*='salary']")
-                    link_el = card.select_one("a[href]")
+                    raw_desc = BeautifulSoup(raw_desc, "lxml").get_text(" ", strip=True)
+                except Exception:
+                    pass
+            desc = raw_desc[:500]
 
-                    role = title_el.get_text(strip=True) if title_el else None
-                    company = company_el.get_text(strip=True) if company_el else None
-                    loc = location_el.get_text(strip=True) if location_el else "India"
-                    salary = salary_el.get_text(strip=True) if salary_el else None
-                    apply_url = link_el["href"] if link_el and link_el.has_attr("href") else None
-                    if apply_url and not apply_url.startswith("http"):
-                        apply_url = f"{base_url}{apply_url}"
+            jobs.append({
+                "portal": "HiringCafe",
+                "company": company,
+                "role": role,
+                "salary": salary,
+                "salary_currency": currency,
+                "location": loc,
+                "job_description": desc,
+                "apply_url": item.get("apply_url") or "",
+                "date_posted": (v5.get("estimated_publish_date") or "")[:10],
+                "remote_status": (v5.get("workplace_type") or "").lower() or None,
+            })
 
-                    if role and company:
-                        jobs.append({
-                            "portal": "HiringCafe",
-                            "company": company,
-                            "role": role,
-                            "salary": salary,
-                            "salary_currency": "INR",
-                            "location": loc,
-                            "job_description": "",
-                            "apply_url": apply_url or url,
-                        })
-                except Exception as e:
-                    logger.debug("Error parsing HiringCafe card: %s", e)
-                    continue
-
-        except Exception as e:
-            logger.error("Error parsing HiringCafe page: %s", e)
-
+        logger.info("HiringCafe: got %d jobs for '%s'", len(raw_jobs), title)
         random_delay(config)
 
-    logger.info("HiringCafe: found %d jobs", len(jobs))
+    logger.info("HiringCafe: found %d jobs total", len(jobs))
     return jobs
 
 
