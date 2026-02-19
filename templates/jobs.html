@@ -189,124 +189,148 @@
 
 <!-- Job Cards -->
 {% if jobs %}
-<div class="space-y-4">
+<div class="space-y-3" id="job-list">
   {% for job in jobs %}
-  <div class="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-5" id="job-{{ job.job_id }}">
-    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-      <div class="flex-1 min-w-0">
-        <!-- Badges -->
-        <div class="flex flex-wrap gap-2 mb-2">
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
-            {{ job.portal }}
-          </span>
+  {% set status_colors = {
+    0: 'border-l-gray-300',
+    1: 'border-l-green-400',
+    2: 'border-l-blue-400',
+    3: 'border-l-cyan-400',
+    4: 'border-l-orange-400',
+    5: 'border-l-emerald-500',
+    6: 'border-l-red-400'
+  } %}
+  {% set status_labels = {
+    0: ('New', 'bg-gray-100 text-gray-600'),
+    1: ('Applied', 'bg-green-100 text-green-700'),
+    2: ('Saved', 'bg-blue-100 text-blue-700'),
+    3: ('Phone Screen', 'bg-cyan-100 text-cyan-700'),
+    4: ('Interview', 'bg-orange-100 text-orange-700'),
+    5: ('Offer', 'bg-emerald-100 text-emerald-700'),
+    6: ('Rejected', 'bg-red-100 text-red-600')
+  } %}
+  {% set s = job.applied_status | int %}
+  <div class="bg-white border border-gray-100 border-l-4 {{ status_colors.get(s, 'border-l-gray-300') }} rounded-xl shadow-sm hover:shadow-md transition-shadow"
+       id="job-{{ job.job_id }}">
+    <div class="p-5">
+
+      <!-- Top row: badges + status pill -->
+      <div class="flex items-start justify-between gap-3 mb-2">
+        <div class="flex flex-wrap gap-1.5">
+          <span class="px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700">{{ job.portal }}</span>
           {% if job.remote_status == 'remote' %}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Remote</span>
+          <span class="px-2 py-0.5 rounded-md text-xs font-medium bg-green-50 text-green-700">Remote</span>
           {% elif job.remote_status == 'hybrid' %}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Hybrid</span>
+          <span class="px-2 py-0.5 rounded-md text-xs font-medium bg-amber-50 text-amber-700">Hybrid</span>
           {% else %}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">On-site</span>
-          {% endif %}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
-            {{ job.company_type | capitalize }}
-          </span>
-          {% if job.applied_status == 1 %}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Applied</span>
-          {% elif job.applied_status == 2 %}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Saved</span>
-          {% elif job.applied_status == 3 %}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-cyan-100 text-cyan-800">Phone Screen</span>
-          {% elif job.applied_status == 4 %}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">Interview</span>
-          {% elif job.applied_status == 5 %}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">Offer</span>
-          {% elif job.applied_status == 6 %}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Rejected</span>
+          <span class="px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600">On-site</span>
           {% endif %}
           {% if job.company_funding_stage %}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800">{{ job.company_funding_stage }}</span>
-          {% endif %}
-          {% if job.company_size %}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">{{ job.company_size }}</span>
+          <span class="px-2 py-0.5 rounded-md text-xs font-medium bg-teal-50 text-teal-700">{{ job.company_funding_stage }}</span>
           {% endif %}
         </div>
-
-        <!-- Title & Company -->
-        <h3 class="text-lg font-semibold text-gray-900 truncate">{{ job.role }}</h3>
-        <p class="text-sm text-gray-600">{{ job.company }}{% if job.location %} &middot; {{ job.location }}{% endif %}{% if job.date_posted %} &middot; <span class="text-indigo-600">Posted {{ job.date_posted }}</span>{% endif %}</p>
-        {% if job.salary %}
-        <p class="text-sm text-green-700 font-medium mt-1">{{ job.salary_currency }} {{ job.salary }}</p>
-        {% endif %}
-        {% if job.experience_min is not none %}
-        <p class="text-sm text-gray-500 mt-0.5">Experience: {{ job.experience_min }}-{{ job.experience_max }} years</p>
-        {% endif %}
-
-        <!-- Description excerpt -->
-        {% if job.job_description %}
-        <p class="text-sm text-gray-500 mt-2 line-clamp-2">{{ job.job_description[:200] }}{% if job.job_description|length > 200 %}...{% endif %}</p>
-        {% endif %}
+        <!-- Status pill top-right -->
+        {% set label_info = status_labels.get(s, ('New', 'bg-gray-100 text-gray-600')) %}
+        <span class="flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-semibold {{ label_info[1] }}">{{ label_info[0] }}</span>
       </div>
 
-      <!-- Score -->
-      <div class="flex-shrink-0 text-center sm:ml-4">
-        <div class="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold
-          {% if job.relevance_score >= 75 %}bg-green-100 text-green-700
-          {% elif job.relevance_score >= 50 %}bg-yellow-100 text-yellow-700
-          {% else %}bg-gray-100 text-gray-600{% endif %}">
-          {{ job.relevance_score }}
+      <!-- Role + Company -->
+      <h3 class="text-base font-semibold text-gray-900 leading-snug">{{ job.role }}</h3>
+      <p class="text-sm text-gray-500 mt-0.5">
+        {{ job.company }}
+        {% if job.location %} &middot; {{ job.location }}{% endif %}
+        {% if job.date_posted %} &middot; <span class="text-indigo-500">{{ job.date_posted }}</span>{% endif %}
+      </p>
+
+      <!-- Info row -->
+      <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
+        {% if job.salary %}<span class="text-green-700 font-medium">{{ job.salary_currency }} {{ job.salary }}</span>{% endif %}
+        {% if job.experience_min is not none %}<span>{{ job.experience_min }}-{{ job.experience_max }}y exp</span>{% endif %}
+        {% if job.company_size %}<span>{{ job.company_size }}</span>{% endif %}
+      </div>
+
+      <!-- CV Match Bar -->
+      {% set cv = job.cv_score | default(0) | int %}
+      <div class="mt-3">
+        <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
+          <span>CV Match</span>
+          <span class="font-semibold {% if cv >= 70 %}text-green-700{% elif cv >= 40 %}text-amber-600{% else %}text-gray-400{% endif %}">{{ cv }}%</span>
         </div>
-        <p class="text-xs text-gray-400 mt-1">score</p>
+        <div class="w-full bg-gray-100 rounded-full h-1.5">
+          <div class="h-1.5 rounded-full {% if cv >= 70 %}bg-green-500{% elif cv >= 40 %}bg-amber-400{% else %}bg-gray-300{% endif %}"
+               style="width: {{ cv }}%"></div>
+        </div>
       </div>
-    </div>
 
-    <!-- Contact Info Row -->
-    {% if job.poster_name or job.poster_email or job.poster_phone or job.poster_linkedin %}
-    <div class="mt-3 px-3 py-2 bg-blue-50 rounded-md border border-blue-100">
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-        <span class="font-medium text-blue-800">Contact:</span>
-        {% if job.poster_name %}
-        <span class="text-blue-700">{{ job.poster_name }}</span>
-        {% endif %}
-        {% if job.poster_email %}
-        <a href="mailto:{{ job.poster_email }}" class="text-blue-600 hover:underline">{{ job.poster_email }}</a>
-        {% endif %}
-        {% if job.poster_phone %}
-        <a href="tel:{{ job.poster_phone }}" class="text-blue-600 hover:underline">{{ job.poster_phone }}</a>
-        {% endif %}
-        {% if job.poster_linkedin %}
-        <a href="{{ job.poster_linkedin }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline">LinkedIn</a>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- Actions -->
-    <div class="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-gray-100">
-      {% if job.apply_url %}
-      <a href="{{ job.apply_url }}" target="_blank" rel="noopener"
-         class="inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-md hover:bg-indigo-700">
-        Apply Now
-      </a>
+      <!-- Description snippet -->
+      {% if job.job_description %}
+      <p class="text-xs text-gray-400 mt-2 line-clamp-2">{{ job.job_description[:180] }}{% if job.job_description|length > 180 %}...{% endif %}</p>
       {% endif %}
-      <select onchange="updateJobStatus('{{ job.job_id }}', this.value)"
-              class="text-xs rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-1.5">
-        <option value="0" {% if job.applied_status == 0 %}selected{% endif %}>New</option>
-        <option value="1" {% if job.applied_status == 1 %}selected{% endif %}>Applied</option>
-        <option value="2" {% if job.applied_status == 2 %}selected{% endif %}>Saved</option>
-        <option value="3" {% if job.applied_status == 3 %}selected{% endif %}>Phone Screen</option>
-        <option value="4" {% if job.applied_status == 4 %}selected{% endif %}>Interview</option>
-        <option value="5" {% if job.applied_status == 5 %}selected{% endif %}>Offer</option>
-        <option value="6" {% if job.applied_status == 6 %}selected{% endif %}>Rejected</option>
-      </select>
-      <button onclick="fetchTailoredPoints('{{ job.job_id }}', this)"
-              class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md border bg-white text-gray-700 border-gray-300 hover:bg-gray-50">
-        Tailored Points
-      </button>
-    </div>
 
-    <!-- Tailored Points Panel (hidden by default) -->
-    <div id="tailored-{{ job.job_id }}" class="hidden mt-3 p-3 bg-amber-50 rounded-md border border-amber-200">
-      <p class="text-xs font-semibold text-amber-800 mb-2">Tailored Resume Points:</p>
-      <ul id="tailored-list-{{ job.job_id }}" class="space-y-1 text-sm text-amber-900"></ul>
+      <!-- Contact Info -->
+      {% if job.poster_email or job.poster_linkedin %}
+      <div class="mt-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100 text-xs flex flex-wrap gap-x-3 gap-y-1">
+        <span class="font-medium text-blue-700">Contact:</span>
+        {% if job.poster_name %}<span class="text-blue-700">{{ job.poster_name }}</span>{% endif %}
+        {% if job.poster_email %}<a href="mailto:{{ job.poster_email }}" class="text-blue-600 hover:underline">{{ job.poster_email }}</a>{% endif %}
+        {% if job.poster_linkedin %}<a href="{{ job.poster_linkedin }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline">LinkedIn</a>{% endif %}
+      </div>
+      {% endif %}
+
+      <!-- Actions row -->
+      <div class="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+        {% if job.apply_url %}
+        <a href="{{ job.apply_url }}" target="_blank" rel="noopener"
+           class="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700">
+          Apply
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+          </svg>
+        </a>
+        {% endif %}
+
+        <select onchange="updateJobStatus('{{ job.job_id }}', this.value)"
+                class="text-xs rounded-lg border-gray-200 bg-gray-50 px-2 py-1.5 border focus:border-indigo-400 focus:ring-0 cursor-pointer">
+          <option value="0" {% if s == 0 %}selected{% endif %}>Set Status</option>
+          <option value="1" {% if s == 1 %}selected{% endif %}>Applied</option>
+          <option value="2" {% if s == 2 %}selected{% endif %}>Save</option>
+          <option value="3" {% if s == 3 %}selected{% endif %}>Phone Screen</option>
+          <option value="4" {% if s == 4 %}selected{% endif %}>Interview</option>
+          <option value="5" {% if s == 5 %}selected{% endif %}>Offer</option>
+          <option value="6" {% if s == 6 %}selected{% endif %}>Rejected</option>
+        </select>
+
+        <button onclick="toggleGapAnalysis('{{ job.job_id }}', this)"
+                class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          Gap Analysis
+        </button>
+
+        <button onclick="fetchTailoredPoints('{{ job.job_id }}', this)"
+                class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50">
+          Tailored Points
+        </button>
+
+        <span class="ml-auto text-xs text-gray-300 font-mono">{{ job.relevance_score }}pt</span>
+      </div>
+
+      <!-- Gap Analysis Panel (hidden by default) -->
+      <div id="gap-{{ job.job_id }}" class="hidden mt-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs font-semibold text-slate-700">Gap Analysis</p>
+          <div id="gap-score-{{ job.job_id }}" class="text-xs font-bold text-slate-500"></div>
+        </div>
+        <div id="gap-content-{{ job.job_id }}" class="text-xs text-slate-500 italic">Loading...</div>
+      </div>
+
+      <!-- Tailored Points Panel (hidden by default) -->
+      <div id="tailored-{{ job.job_id }}" class="hidden mt-3 p-4 bg-amber-50 rounded-xl border border-amber-200">
+        <p class="text-xs font-semibold text-amber-800 mb-2">Tailored Resume Points</p>
+        <ul id="tailored-list-{{ job.job_id }}" class="space-y-1 text-xs text-amber-900"></ul>
+      </div>
+
     </div>
   </div>
   {% endfor %}
@@ -483,18 +507,77 @@ fetch('/api/search/status')
   });
 
 function updateJobStatus(jobId, status) {
+  if (!status || status === '0') return;
   fetch(`/api/jobs/${jobId}/status`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({status: parseInt(status)}),
   })
   .then(r => r.json())
-  .then(data => {
-    if (data.ok) {
-      window.location.reload();
-    }
-  })
+  .then(data => { if (data.ok) window.location.reload(); })
   .catch(err => console.error('Error updating job status:', err));
+}
+
+function toggleGapAnalysis(jobId, btn) {
+  const panel = document.getElementById('gap-' + jobId);
+  const content = document.getElementById('gap-content-' + jobId);
+  const scoreEl = document.getElementById('gap-score-' + jobId);
+
+  if (!panel.classList.contains('hidden')) {
+    panel.classList.add('hidden');
+    return;
+  }
+
+  panel.classList.remove('hidden');
+
+  if (content.dataset.loaded) return;
+
+  fetch(`/api/jobs/${jobId}/gap-analysis`)
+    .then(r => r.json())
+    .then(data => {
+      content.dataset.loaded = '1';
+      if (!data.ok) {
+        content.innerHTML = `<span class="text-red-500">${escapeHtml(data.error || 'Failed to load')}</span>`;
+        return;
+      }
+
+      const cvPct = data.cv_score || 0;
+      scoreEl.textContent = `${cvPct}% match`;
+      scoreEl.className = `text-xs font-bold ${cvPct >= 70 ? 'text-green-600' : cvPct >= 40 ? 'text-amber-600' : 'text-gray-400'}`;
+
+      const matchedHtml = (data.matched_skills || []).length > 0
+        ? `<div class="mb-2">
+            <p class="font-semibold text-green-700 mb-1">✓ Matched (${data.matched_skills.length})</p>
+            <div class="flex flex-wrap gap-1">${data.matched_skills.map(s =>
+              `<span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">${escapeHtml(s)}</span>`
+            ).join('')}</div>
+           </div>`
+        : '';
+
+      const missingHtml = (data.missing_skills || []).length > 0
+        ? `<div class="mb-2">
+            <p class="font-semibold text-red-600 mb-1">✗ Missing (${data.missing_skills.length})</p>
+            <div class="flex flex-wrap gap-1">${data.missing_skills.map(s =>
+              `<span class="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-xs border border-red-100">${escapeHtml(s)}</span>`
+            ).join('')}</div>
+           </div>`
+        : '';
+
+      const tipsHtml = (data.action_steps || []).length > 0
+        ? `<div>
+            <p class="font-semibold text-slate-600 mb-1">→ Action Steps</p>
+            <ul class="space-y-1">${data.action_steps.map(t =>
+              `<li class="text-slate-500">${t.replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-700">$1</strong>')}</li>`
+            ).join('')}</ul>
+           </div>`
+        : '';
+
+      content.innerHTML = matchedHtml + missingHtml + tipsHtml ||
+        '<span class="text-slate-400">Upload your CV to see gap analysis.</span>';
+    })
+    .catch(err => {
+      content.innerHTML = `<span class="text-red-500">Error: ${escapeHtml(err.message)}</span>`;
+    });
 }
 
 // ---- NLP Chat Search ----
@@ -617,10 +700,8 @@ function appendNlpError(container, msg) {
   container.scrollTop = container.scrollHeight;
 }
 
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function buildFilterQueryString(filters) {
