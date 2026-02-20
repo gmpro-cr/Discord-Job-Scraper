@@ -315,6 +315,20 @@ def get_jobs_found_today():
     return count
 
 
+def get_jobs_found_yesterday():
+    """Get count of jobs found yesterday."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    cursor.execute(
+        "SELECT COUNT(*) as cnt FROM job_listings WHERE date_found LIKE ?",
+        (f"{yesterday}%",),
+    )
+    count = cursor.fetchone()["cnt"]
+    conn.close()
+    return count
+
+
 def get_jobs_found_this_week():
     """Get count of jobs found in the last 7 days."""
     conn = get_connection()
@@ -371,6 +385,7 @@ def get_comprehensive_stats():
     return {
         "total_jobs": get_total_jobs(),
         "jobs_today": get_jobs_found_today(),
+        "jobs_yesterday": get_jobs_found_yesterday(),
         "jobs_this_week": get_jobs_found_this_week(),
         "portal_stats": get_portal_stats(),
         "top_companies": get_top_companies(5),

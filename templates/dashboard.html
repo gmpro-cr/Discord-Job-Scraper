@@ -17,22 +17,41 @@
   <div class="stat-card">
     <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Today</p>
     <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.jobs_today }}</p>
+    {% set yesterday = stats.jobs_yesterday | default(0) %}
+    {% if yesterday > 0 %}
+      {% set delta = stats.jobs_today - yesterday %}
+      {% if delta > 0 %}
+      <p class="text-xs mt-1 text-green-600 font-medium">↑ {{ delta }} vs yesterday ({{ yesterday }})</p>
+      {% elif delta < 0 %}
+      <p class="text-xs mt-1 text-red-500 font-medium">↓ {{ delta | abs }} vs yesterday ({{ yesterday }})</p>
+      {% else %}
+      <p class="text-xs mt-1 text-gray-400">= same as yesterday</p>
+      {% endif %}
+    {% else %}
+    <p class="text-xs text-gray-400 mt-1">jobs found today</p>
+    {% endif %}
   </div>
   <div class="stat-card">
     <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">This Week</p>
     <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.jobs_this_week }}</p>
+    <p class="text-xs text-gray-400 mt-1">last 7 days</p>
   </div>
   <div class="stat-card">
-    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Applied / Saved</p>
-    <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.applied_count }}<span class="text-lg text-gray-400">/{{ stats.saved_count }}</span></p>
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Applied</p>
+    <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.applied_count }}<span class="text-lg text-gray-400"> / {{ stats.saved_count }} saved</span></p>
   </div>
 </div>
 
 <!-- Recommended Actions -->
 {% if recommendations %}
 <div class="bg-white rounded-lg shadow mb-6">
-  <div class="px-5 py-4 border-b border-gray-200">
+  <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
     <h2 class="text-lg font-semibold text-gray-900">Recommended Actions</h2>
+    <div class="flex items-center gap-3 text-xs text-gray-400">
+      <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span> Urgent</span>
+      <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> Follow-up</span>
+      <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span> Opportunity</span>
+    </div>
   </div>
   <div class="p-5 space-y-3">
     {% for rec in recommendations %}
@@ -145,28 +164,46 @@
   <div class="bg-white rounded-lg shadow">
     <div class="px-5 py-4 border-b border-gray-200">
       <h2 class="text-lg font-semibold text-gray-900">Application Pipeline</h2>
+      <p class="text-xs text-gray-400 mt-0.5">Excludes unreviewed "New" jobs</p>
     </div>
     <div class="p-5">
       {% if pipeline %}
-      <div class="space-y-3">
+        {% set tracked_stages = ['Applied', 'Saved', 'Phone Screen', 'Interview', 'Offer', 'Rejected'] %}
         {% set pipe_colors = {
-          'New': 'bg-gray-200', 'Applied': 'bg-green-200', 'Saved': 'bg-blue-200',
-          'Phone Screen': 'bg-cyan-200', 'Interview': 'bg-orange-200',
-          'Offer': 'bg-emerald-200', 'Rejected': 'bg-red-200'
+          'Applied': 'bg-green-400', 'Saved': 'bg-blue-300',
+          'Phone Screen': 'bg-cyan-400', 'Interview': 'bg-orange-400',
+          'Offer': 'bg-emerald-500', 'Rejected': 'bg-red-300'
         } %}
-        {% set pipe_max = pipeline.values() | max if pipeline.values() | list else 1 %}
-        {% for stage, count in pipeline.items() %}
-        <div>
-          <div class="flex justify-between text-sm mb-1">
-            <span class="text-gray-700">{{ stage }}</span>
-            <span class="font-medium text-gray-900">{{ count }}</span>
-          </div>
-          <div class="w-full bg-gray-100 rounded-full h-2">
-            <div class="{{ pipe_colors.get(stage, 'bg-gray-300') }} h-2 rounded-full" style="width: {{ (count / pipe_max * 100) if pipe_max > 0 else 0 }}%"></div>
-          </div>
-        </div>
+        {% set tracked_values = [] %}
+        {% for stage in tracked_stages %}
+          {% if pipeline.get(stage, 0) > 0 %}{% set _ = tracked_values.append(pipeline.get(stage, 0)) %}{% endif %}
         {% endfor %}
-      </div>
+        {% set pipe_max = tracked_values | max if tracked_values else 1 %}
+        {% set total_tracked = tracked_values | sum if tracked_values else 0 %}
+
+        {% if total_tracked > 0 %}
+        <div class="space-y-3">
+          {% for stage in tracked_stages %}
+          {% set count = pipeline.get(stage, 0) %}
+          <div>
+            <div class="flex justify-between text-sm mb-1">
+              <span class="text-gray-700">{{ stage }}</span>
+              <span class="font-medium text-gray-900">{{ count }}</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-2">
+              <div class="{{ pipe_colors.get(stage, 'bg-gray-300') }} h-2 rounded-full" style="width: {{ (count / pipe_max * 100) if pipe_max > 0 and count > 0 else 0 }}%"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-6">
+          <p class="text-gray-400 text-sm">No applications tracked yet.</p>
+          <a href="{{ url_for('jobs') }}" class="mt-3 inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+            Browse jobs and start applying →
+          </a>
+        </div>
+        {% endif %}
       {% else %}
       <p class="text-gray-500 text-sm">No pipeline data yet.</p>
       {% endif %}
@@ -243,23 +280,4 @@
   </div>
 </div>
 {% endif %}
-
-<!-- Quick Actions -->
-<div class="mt-8 flex flex-wrap gap-3">
-  <a href="{{ url_for('scraper') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-    </svg>
-    Run Scraper
-  </a>
-  <a href="{{ url_for('jobs') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50">
-    Browse Jobs
-  </a>
-  <a href="{{ url_for('digests') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50">
-    View Digests
-  </a>
-  <a href="{{ url_for('cv_page') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50">
-    Upload CV
-  </a>
-</div>
 {% endblock %}
