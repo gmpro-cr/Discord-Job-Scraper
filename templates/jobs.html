@@ -6,7 +6,7 @@
 <div class="mb-4 flex items-center justify-between">
   <div>
     <h1 class="text-xl font-bold text-gray-900">Jobs</h1>
-    <p class="text-sm text-gray-400 mt-0.5">{{ total }} results{% if total_pages > 1 %} · Page {{ page }} of {{ total_pages }}{% endif %}</p>
+    <p class="text-sm text-gray-400 mt-0.5">{{ total }} results</p>
   </div>
   <div class="flex items-center gap-2">
     <button onclick="toggleSection('search-tools-panel')" class="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50">
@@ -169,7 +169,7 @@
 
 <!-- Job Cards Grid -->
 {% if jobs %}
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-3" id="job-list">
+<div class="grid grid-cols-1 gap-4" id="job-list">
   {% for job in jobs %}
   {% set status_colors = {
     0: 'border-l-gray-300',
@@ -216,9 +216,9 @@
       </div>
 
       <!-- Role title -->
-      <h3 class="text-base font-bold text-gray-900 leading-snug mb-1">{{ job.role }}</h3>
+      <h3 class="text-base font-bold text-gray-900 leading-snug mb-2">{{ job.role }}</h3>
       {% if job.job_description %}
-      <p class="text-xs text-gray-400 mb-2 line-clamp-2 leading-relaxed">{{ job.job_description | truncate(160, True, '…') }}</p>
+      <p class="text-sm text-gray-600 mb-3 leading-relaxed whitespace-pre-line">{{ job.job_description }}</p>
       {% endif %}
 
       <!-- Key details row -->
@@ -366,31 +366,6 @@
   {% endfor %}
 </div>
 
-<!-- Pagination -->
-{% if total_pages > 1 %}
-<nav class="mt-6 flex items-center justify-center gap-1">
-  {% if page > 1 %}
-  <a href="{{ url_for('jobs', page=page-1, **clean_filters) }}"
-     class="px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">← Prev</a>
-  {% endif %}
-
-  {% for p in range(1, total_pages + 1) %}
-    {% if p == page %}
-    <span class="px-3 py-2 text-sm font-semibold text-white bg-indigo-600 border border-indigo-600 rounded-lg">{{ p }}</span>
-    {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
-    <a href="{{ url_for('jobs', page=p, **clean_filters) }}"
-       class="px-3 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">{{ p }}</a>
-    {% elif p == page - 3 or p == page + 3 %}
-    <span class="px-2 py-2 text-sm text-gray-400">…</span>
-    {% endif %}
-  {% endfor %}
-
-  {% if page < total_pages %}
-  <a href="{{ url_for('jobs', page=page+1, **clean_filters) }}"
-     class="px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">Next →</a>
-  {% endif %}
-</nav>
-{% endif %}
 
 {% else %}
 <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">

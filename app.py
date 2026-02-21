@@ -662,29 +662,21 @@ def jobs():
         "salary_min": request.args.get("salary_min", ""),
         "salary_max": request.args.get("salary_max", ""),
     }
-    page = max(1, int(request.args.get("page", "1")))
-    per_page = 25
-
     conditions, params, order = _build_jobs_query(filters)
     where = " WHERE " + " AND ".join(conditions) if conditions else ""
 
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Count
-    cursor.execute(f"SELECT COUNT(*) as cnt FROM job_listings{where}", params)
-    total = cursor.fetchone()["cnt"]
-
-    # Fetch page
-    offset = (page - 1) * per_page
+    # Fetch all matching jobs (no pagination)
     cursor.execute(
-        f"SELECT * FROM job_listings{where} ORDER BY {order} LIMIT ? OFFSET ?",
-        params + [per_page, offset],
+        f"SELECT * FROM job_listings{where} ORDER BY {order}",
+        params,
     )
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
 
-    total_pages = max(1, (total + per_page - 1) // per_page)
+    total = len(rows)
 
     # Get distinct portals for filter dropdown
     conn2 = get_connection()
@@ -700,7 +692,7 @@ def jobs():
 
     return render_template(
         "jobs.html",
-        jobs=rows, total=total, page=page, total_pages=total_pages,
+        jobs=rows, total=total,
         portals=portals, locations=normalized_locs,
         filters=filters, clean_filters=clean_filters,
     )
