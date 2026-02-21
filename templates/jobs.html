@@ -209,7 +209,7 @@
   {% set score = job.relevance_score | int %}
   {% set label_info = status_labels.get(s, ('New', 'bg-gray-100 text-gray-500')) %}
 
-  <div class="job-card bg-white border border-gray-100 border-l-4 {{ status_colors.get(s, 'border-l-gray-300') }} rounded-xl shadow-sm hover:shadow-md transition-shadow"
+  <div class="job-card bg-white border border-gray-100 border-l-4 {{ status_colors.get(s, 'border-l-gray-300') }} rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col h-full"
        id="job-{{ job.job_id }}"
        data-role="{{ job.role | lower }}">
 
@@ -227,11 +227,11 @@
     </div>
 
     <!-- ── Card Body ─────────────────────────────────────────────────── -->
-    <div class="p-4 flex flex-col">
+    <div class="p-4 flex flex-col flex-1">
 
       <!-- Title + Score -->
       <div class="flex items-start justify-between gap-3 mb-3">
-        <h3 class="text-base font-bold text-gray-900 leading-snug flex-1">{{ job.role }}</h3>
+        <h3 class="text-base font-bold text-gray-900 leading-snug flex-1 line-clamp-2">{{ job.role }}</h3>
         <span class="flex-shrink-0 px-2.5 py-1 rounded-lg text-sm font-bold tabular-nums
           {% if score >= 80 %}bg-green-100 text-green-700
           {% elif score >= 65 %}bg-amber-100 text-amber-700
@@ -264,17 +264,19 @@
         {% endif %}
       </div>
 
-      <!-- Job Description (full) -->
-      {% if job.job_description %}
-      <p class="text-sm text-gray-600 leading-relaxed whitespace-pre-line mb-4 pb-4 border-b border-gray-100">{{ job.job_description }}</p>
-      {% endif %}
+      <!-- Job Description (fixed height for symmetry) -->
+      <div class="min-h-[5rem] mb-4 pb-4 border-b border-gray-100">
+        {% if job.job_description %}
+        <p class="text-sm text-gray-600 leading-relaxed line-clamp-4">{{ job.job_description }}</p>
+        {% else %}
+        <p class="text-sm text-gray-400 italic">No description available.</p>
+        {% endif %}
+      </div>
 
-      <!-- CV Match Circle + Contact -->
-      {% if cv > 0 or job.poster_email or job.poster_linkedin %}
-      <div class="flex items-center gap-4 mb-4">
+      <!-- CV Match Circle + Contact (always rendered for symmetry) -->
+      <div class="flex items-center gap-4 mb-4 min-h-[3.5rem]">
         {% if cv > 0 %}
         <div class="flex items-center gap-2.5">
-          <!-- SVG circle: r=19, circumference = 2π×19 = 119.38 -->
           <div class="relative w-14 h-14 flex-shrink-0">
             <svg width="56" height="56" viewBox="0 0 56 56" class="w-14 h-14">
               <circle cx="28" cy="28" r="22" fill="none" stroke="#e5e7eb" stroke-width="5"/>
@@ -292,6 +294,18 @@
           </div>
           <span class="text-xs text-gray-500 font-medium">CV Match</span>
         </div>
+        {% else %}
+        <div class="flex items-center gap-2.5">
+          <div class="relative w-14 h-14 flex-shrink-0">
+            <svg width="56" height="56" viewBox="0 0 56 56" class="w-14 h-14">
+              <circle cx="28" cy="28" r="22" fill="none" stroke="#e5e7eb" stroke-width="5"/>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span class="text-[9px] text-gray-400 leading-none text-center">No CV<br>data</span>
+            </div>
+          </div>
+          <span class="text-xs text-gray-300 font-medium">CV Match</span>
+        </div>
         {% endif %}
         {% if job.poster_email or job.poster_linkedin %}
         <div class="text-xs flex flex-wrap gap-2 text-blue-600">
@@ -301,10 +315,9 @@
         </div>
         {% endif %}
       </div>
-      {% endif %}
 
-      <!-- Actions -->
-      <div class="pt-3 border-t border-gray-100">
+      <!-- Actions (pinned to bottom) -->
+      <div class="mt-auto pt-3 border-t border-gray-100">
         <!-- Primary row -->
         <div class="flex items-center gap-1.5 flex-wrap">
           {% if job.apply_url %}
