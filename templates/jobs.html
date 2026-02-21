@@ -189,7 +189,7 @@
 
 <!-- Job Cards -->
 {% if jobs %}
-<div class="grid grid-cols-1 gap-4" id="job-list">
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" id="job-list">
   {% for job in jobs %}
   {% set status_colors = {
     0: 'border-l-gray-300', 1: 'border-l-green-400', 2: 'border-l-blue-400',
