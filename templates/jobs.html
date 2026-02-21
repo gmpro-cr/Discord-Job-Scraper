@@ -1,12 +1,37 @@
 {% extends "base.html" %}
 {% block title %}Jobs - Job Search Agent{% endblock %}
 
+{% block head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  .jobs-page { font-family: 'DM Sans', sans-serif; }
+  .jobs-page h1, .jobs-page .syne { font-family: 'Syne', sans-serif; }
+  .job-card { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+  .job-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,0.10); }
+  .persona-tab { font-family: 'DM Sans', sans-serif; transition: all 0.15s ease; }
+  .persona-tab.active { background: #111827; color: #fff; border-color: #111827; }
+  .persona-tab:not(.active) { background: #fff; color: #4b5563; border-color: #e5e7eb; }
+  .persona-tab:not(.active):hover { border-color: #f59e0b; color: #111827; }
+  .score-pill-high  { background:#111827; color:#fff; }
+  .score-pill-mid   { background:#fef3c7; color:#b45309; }
+  .score-pill-low   { background:#f3f4f6; color:#6b7280; }
+  .apply-btn { background:#f59e0b; color:#fff; transition: background 0.15s; }
+  .apply-btn:hover { background:#d97706; }
+  .filter-submit { background:#111827; color:#fff; transition: background 0.15s; }
+  .filter-submit:hover { background:#374151; }
+  .desc-preview { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="jobs-page">
 <!-- Page Header -->
 <div class="mb-4 flex items-center justify-between">
   <div>
-    <h1 class="text-xl font-bold text-gray-900">Jobs</h1>
-    <p class="text-sm text-gray-400 mt-0.5">{{ total }} results</p>
+    <h1 class="syne text-2xl font-extrabold text-gray-900 tracking-tight uppercase">Jobs</h1>
+    <p class="text-sm text-gray-400 mt-0.5 font-medium">{{ total }} results</p>
   </div>
   <div class="flex items-center gap-2">
     <button onclick="toggleSection('search-tools-panel')" class="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50">
@@ -35,7 +60,7 @@
                class="flex-1 text-sm rounded-lg border-gray-200 shadow-sm focus:border-indigo-400 focus:ring-indigo-400 border p-2"
                autocomplete="off">
         <button type="submit" id="nlp-send-btn"
-                class="px-3 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 flex items-center gap-1">
+                class="apply-btn px-3 py-2 text-sm font-semibold rounded-lg flex items-center gap-1">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
           </svg>
@@ -54,7 +79,7 @@
       <input type="text" id="search-location" placeholder="Location"
              class="text-sm rounded-lg border-gray-200 shadow-sm focus:border-indigo-400 focus:ring-indigo-400 border p-2">
       <button id="search-btn" onclick="startLiveSearch()"
-              class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700">
+              class="filter-submit px-4 py-2 text-sm font-semibold rounded-lg">
         Search Jobs
       </button>
     </div>
@@ -110,7 +135,7 @@
       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
       More
     </button>
-    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700">
+    <button type="submit" class="filter-submit px-4 py-2 text-sm font-semibold rounded-lg">
       Filter
     </button>
     {% if filters.search or filters.portal or filters.remote or filters.location or filters.recency or filters.applied or filters.experience or filters.salary_min or filters.salary_max or (filters.min_score and filters.min_score != '40') %}
@@ -168,22 +193,26 @@
 </form>
 
 <!-- Persona Tabs -->
-<div class="grid grid-cols-4 gap-2 mb-4">
+<div class="flex gap-2 mb-5 flex-wrap">
   <button data-persona="all" onclick="switchPersona('all', this)"
-          class="persona-tab px-3 py-2.5 text-sm font-semibold rounded-xl border-2 border-indigo-600 bg-indigo-600 text-white transition-all text-center">
-    All <span class="font-normal opacity-75" id="ptab-count-all">{{ total }}</span>
+          class="persona-tab active px-4 py-2 text-sm font-semibold rounded-full border-2 text-center flex items-center gap-1.5">
+    All
+    <span class="inline-flex items-center justify-center text-xs font-bold w-5 h-5 rounded-full bg-white/20" id="ptab-count-all">{{ total }}</span>
   </button>
   <button data-persona="pm" onclick="switchPersona('pm', this)"
-          class="persona-tab px-3 py-2.5 text-sm font-semibold rounded-xl border-2 border-gray-200 bg-white text-gray-600 hover:border-indigo-300 transition-all text-center">
-    Product Manager <span class="font-normal text-gray-400" id="ptab-count-pm">…</span>
+          class="persona-tab px-4 py-2 text-sm font-semibold rounded-full border-2 text-center flex items-center gap-1.5">
+    Product Manager
+    <span class="inline-flex items-center justify-center text-xs font-bold w-5 h-5 rounded-full bg-gray-100" id="ptab-count-pm">…</span>
   </button>
   <button data-persona="analyst" onclick="switchPersona('analyst', this)"
-          class="persona-tab px-3 py-2.5 text-sm font-semibold rounded-xl border-2 border-gray-200 bg-white text-gray-600 hover:border-indigo-300 transition-all text-center">
-    Analyst <span class="font-normal text-gray-400" id="ptab-count-analyst">…</span>
+          class="persona-tab px-4 py-2 text-sm font-semibold rounded-full border-2 text-center flex items-center gap-1.5">
+    Analyst
+    <span class="inline-flex items-center justify-center text-xs font-bold w-5 h-5 rounded-full bg-gray-100" id="ptab-count-analyst">…</span>
   </button>
   <button data-persona="ai" onclick="switchPersona('ai', this)"
-          class="persona-tab px-3 py-2.5 text-sm font-semibold rounded-xl border-2 border-gray-200 bg-white text-gray-600 hover:border-indigo-300 transition-all text-center">
-    AI / ML <span class="font-normal text-gray-400" id="ptab-count-ai">…</span>
+          class="persona-tab px-4 py-2 text-sm font-semibold rounded-full border-2 text-center flex items-center gap-1.5">
+    AI / ML
+    <span class="inline-flex items-center justify-center text-xs font-bold w-5 h-5 rounded-full bg-gray-100" id="ptab-count-ai">…</span>
   </button>
 </div>
 
@@ -209,21 +238,30 @@
   {% set score = job.relevance_score | int %}
   {% set label_info = status_labels.get(s, ('New', 'bg-gray-100 text-gray-500')) %}
 
-  <div class="job-card bg-white border border-gray-100 border-l-4 {{ status_colors.get(s, 'border-l-gray-300') }} rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col h-full"
+  <div class="job-card bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col h-full"
        id="job-{{ job.job_id }}"
        data-role="{{ job.role | lower }}">
 
     <!-- ── Company Bar ──────────────────────────────────────────────── -->
-    <div class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-gray-100 rounded-t-xl gap-3">
+    {% set dark_status = {
+      0: 'bg-white/10 text-white/60',
+      1: 'bg-emerald-400/20 text-emerald-300',
+      2: 'bg-blue-400/20 text-blue-300',
+      3: 'bg-cyan-400/20 text-cyan-300',
+      4: 'bg-orange-400/20 text-orange-300',
+      5: 'bg-emerald-400/30 text-emerald-200',
+      6: 'bg-red-400/20 text-red-300'
+    } %}
+    <div class="flex items-center justify-between px-4 py-3 bg-gray-900 rounded-t-xl gap-3">
       <div class="flex items-center gap-2 min-w-0">
-        <span class="text-sm font-bold text-gray-900 truncate">{{ job.company }}</span>
+        <span class="text-sm font-bold text-white truncate" style="font-family:'DM Sans',sans-serif">{{ job.company }}</span>
         {% if job.company_funding_stage %}
-        <span class="flex-shrink-0 px-1.5 py-0.5 rounded text-xs bg-teal-50 text-teal-600 font-medium">{{ job.company_funding_stage }}</span>
+        <span class="flex-shrink-0 px-1.5 py-0.5 rounded text-xs bg-amber-400/20 text-amber-300 font-medium">{{ job.company_funding_stage }}</span>
         {% endif %}
         <span id="status-pill-{{ job.job_id }}"
-              class="flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold {{ label_info[1] }}">{{ label_info[0] }}</span>
+              class="flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold {{ dark_status.get(s, 'bg-white/10 text-white/60') }}">{{ label_info[0] }}</span>
       </div>
-      <span class="flex-shrink-0 px-2 py-0.5 rounded text-xs bg-indigo-50 text-indigo-500 font-medium">{{ job.portal }}</span>
+      <span class="flex-shrink-0 px-2 py-0.5 rounded text-xs bg-white/10 text-white/60 font-medium">{{ job.portal }}</span>
     </div>
 
     <!-- ── Card Body ─────────────────────────────────────────────────── -->
@@ -231,30 +269,30 @@
 
       <!-- Title + Score -->
       <div class="flex items-start justify-between gap-3 mb-3">
-        <h3 class="text-base font-bold text-gray-900 leading-snug flex-1 line-clamp-2">{{ job.role }}</h3>
-        <span class="flex-shrink-0 px-2.5 py-1 rounded-lg text-sm font-bold tabular-nums
-          {% if score >= 80 %}bg-green-100 text-green-700
-          {% elif score >= 65 %}bg-amber-100 text-amber-700
-          {% else %}bg-gray-100 text-gray-500{% endif %}">
+        <h3 class="text-sm font-bold text-gray-900 leading-snug flex-1 line-clamp-2" style="font-family:'DM Sans',sans-serif">{{ job.role }}</h3>
+        <span class="flex-shrink-0 px-2.5 py-1 rounded-lg text-sm font-extrabold tabular-nums syne
+          {% if score >= 80 %}score-pill-high
+          {% elif score >= 65 %}score-pill-mid
+          {% else %}score-pill-low{% endif %}">
           {{ score }}
         </span>
       </div>
 
       <!-- Meta row -->
-      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 mb-4">
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400 mb-3 font-medium">
         {% if job.location %}
         <span class="flex items-center gap-1">
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <svg class="w-3 h-3 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
           {{ job.location }}
         </span>
         {% endif %}
         {% if job.remote_status == 'remote' %}
-        <span class="px-1.5 py-0.5 rounded bg-green-50 text-green-700 font-medium">Remote</span>
+        <span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold">Remote</span>
         {% elif job.remote_status == 'hybrid' %}
-        <span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-medium">Hybrid</span>
+        <span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 font-semibold">Hybrid</span>
         {% endif %}
         {% if job.salary %}
-        <span class="text-green-700 font-semibold">{{ job.salary_currency }} {{ job.salary }}</span>
+        <span class="text-amber-600 font-bold">{{ job.salary_currency }} {{ job.salary }}</span>
         {% endif %}
         {% if job.experience_min is not none %}
         <span>{{ job.experience_min }}–{{ job.experience_max }}y exp</span>
@@ -265,11 +303,11 @@
       </div>
 
       <!-- Job Description (fixed height for symmetry) -->
-      <div class="min-h-[5rem] mb-4 pb-4 border-b border-gray-100">
+      <div class="min-h-[5rem] mb-4 pb-4 border-b border-gray-100 pl-3 border-l-2 border-l-amber-200">
         {% if job.job_description %}
-        <p class="text-sm text-gray-600 leading-relaxed line-clamp-4">{{ job.job_description }}</p>
+        <p class="text-xs text-gray-500 leading-relaxed desc-preview">{{ job.job_description }}</p>
         {% else %}
-        <p class="text-sm text-gray-400 italic">No description available.</p>
+        <p class="text-xs text-gray-300 italic">No description available.</p>
         {% endif %}
       </div>
 
@@ -324,7 +362,7 @@
           <a href="{{ job.apply_url }}" target="_blank" rel="noopener"
              onclick="onApplyClick('{{ job.job_id }}')"
              data-apply-url="{{ job.apply_url }}"
-             class="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700">
+             class="apply-btn inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg">
             Apply
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
@@ -403,6 +441,7 @@
   <p class="text-gray-400 text-sm mt-1">Try broadening your filters or run a live search.</p>
 </div>
 {% endif %}
+</div>{# close .jobs-page #}
 {% endblock %}
 
 {% block scripts %}
@@ -995,11 +1034,15 @@ const PERSONA_PATTERNS = {
 
 function switchPersona(key, btn) {
   document.querySelectorAll('.persona-tab').forEach(t => {
-    t.classList.remove('border-indigo-600', 'bg-indigo-600', 'text-white');
-    t.classList.add('border-gray-200', 'bg-white', 'text-gray-600');
+    t.classList.remove('active');
+    // reset count badge bg
+    const badge = t.querySelector('span[id^="ptab-count"]');
+    if (badge) badge.style.background = '';
   });
-  btn.classList.remove('border-gray-200', 'bg-white', 'text-gray-600');
-  btn.classList.add('border-indigo-600', 'bg-indigo-600', 'text-white');
+  btn.classList.add('active');
+  // active count badge contrast
+  const activeBadge = btn.querySelector('span[id^="ptab-count"]');
+  if (activeBadge) activeBadge.style.background = 'rgba(255,255,255,0.2)';
 
   const pattern = PERSONA_PATTERNS[key];
   let visible = 0;
