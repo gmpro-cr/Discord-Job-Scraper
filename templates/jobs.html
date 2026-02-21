@@ -167,18 +167,33 @@
   </div>
 </form>
 
-<!-- Job Cards Grid -->
+<!-- Persona Tabs -->
+<div class="grid grid-cols-4 gap-2 mb-4">
+  <button data-persona="all" onclick="switchPersona('all', this)"
+          class="persona-tab px-3 py-2.5 text-sm font-semibold rounded-xl border-2 border-indigo-600 bg-indigo-600 text-white transition-all text-center">
+    All <span class="font-normal opacity-75" id="ptab-count-all">{{ total }}</span>
+  </button>
+  <button data-persona="pm" onclick="switchPersona('pm', this)"
+          class="persona-tab px-3 py-2.5 text-sm font-semibold rounded-xl border-2 border-gray-200 bg-white text-gray-600 hover:border-indigo-300 transition-all text-center">
+    Product Manager <span class="font-normal text-gray-400" id="ptab-count-pm">…</span>
+  </button>
+  <button data-persona="analyst" onclick="switchPersona('analyst', this)"
+          class="persona-tab px-3 py-2.5 text-sm font-semibold rounded-xl border-2 border-gray-200 bg-white text-gray-600 hover:border-indigo-300 transition-all text-center">
+    Analyst <span class="font-normal text-gray-400" id="ptab-count-analyst">…</span>
+  </button>
+  <button data-persona="ai" onclick="switchPersona('ai', this)"
+          class="persona-tab px-3 py-2.5 text-sm font-semibold rounded-xl border-2 border-gray-200 bg-white text-gray-600 hover:border-indigo-300 transition-all text-center">
+    AI / ML <span class="font-normal text-gray-400" id="ptab-count-ai">…</span>
+  </button>
+</div>
+
+<!-- Job Cards -->
 {% if jobs %}
 <div class="grid grid-cols-1 gap-4" id="job-list">
   {% for job in jobs %}
   {% set status_colors = {
-    0: 'border-l-gray-300',
-    1: 'border-l-green-400',
-    2: 'border-l-blue-400',
-    3: 'border-l-cyan-400',
-    4: 'border-l-orange-400',
-    5: 'border-l-emerald-500',
-    6: 'border-l-red-400'
+    0: 'border-l-gray-300', 1: 'border-l-green-400', 2: 'border-l-blue-400',
+    3: 'border-l-cyan-400', 4: 'border-l-orange-400', 5: 'border-l-emerald-500', 6: 'border-l-red-400'
   } %}
   {% set status_labels = {
     0: ('New', 'bg-gray-100 text-gray-500'),
@@ -191,22 +206,32 @@
   } %}
   {% set s = job.applied_status | int %}
   {% set cv = job.cv_score | default(0) | int %}
-  <div class="bg-white border border-gray-100 border-l-4 {{ status_colors.get(s, 'border-l-gray-300') }} rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col"
-       id="job-{{ job.job_id }}">
-    <div class="p-4 flex flex-col flex-1">
+  {% set score = job.relevance_score | int %}
+  {% set label_info = status_labels.get(s, ('New', 'bg-gray-100 text-gray-500')) %}
 
-      <!-- Top: company + status pill + score badge -->
-      <div class="flex items-start justify-between gap-2 mb-1">
-        <div class="flex items-center gap-1.5 flex-wrap min-w-0">
-          <span class="text-sm font-medium text-gray-700 truncate">{{ job.company }}</span>
-          {% if job.company_funding_stage %}
-          <span class="px-1.5 py-0.5 rounded text-xs bg-teal-50 text-teal-600">{{ job.company_funding_stage }}</span>
-          {% endif %}
-          {% set label_info = status_labels.get(s, ('New', 'bg-gray-100 text-gray-500')) %}
-          <span id="status-pill-{{ job.job_id }}" class="flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold {{ label_info[1] }}">{{ label_info[0] }}</span>
-        </div>
-        <!-- Score badge (prominent, top-right) -->
-        {% set score = job.relevance_score | int %}
+  <div class="job-card bg-white border border-gray-100 border-l-4 {{ status_colors.get(s, 'border-l-gray-300') }} rounded-xl shadow-sm hover:shadow-md transition-shadow"
+       id="job-{{ job.job_id }}"
+       data-role="{{ job.role | lower }}">
+
+    <!-- ── Company Bar ──────────────────────────────────────────────── -->
+    <div class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-gray-100 rounded-t-xl gap-3">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="text-sm font-bold text-gray-900 truncate">{{ job.company }}</span>
+        {% if job.company_funding_stage %}
+        <span class="flex-shrink-0 px-1.5 py-0.5 rounded text-xs bg-teal-50 text-teal-600 font-medium">{{ job.company_funding_stage }}</span>
+        {% endif %}
+        <span id="status-pill-{{ job.job_id }}"
+              class="flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold {{ label_info[1] }}">{{ label_info[0] }}</span>
+      </div>
+      <span class="flex-shrink-0 px-2 py-0.5 rounded text-xs bg-indigo-50 text-indigo-500 font-medium">{{ job.portal }}</span>
+    </div>
+
+    <!-- ── Card Body ─────────────────────────────────────────────────── -->
+    <div class="p-4 flex flex-col">
+
+      <!-- Title + Score -->
+      <div class="flex items-start justify-between gap-3 mb-3">
+        <h3 class="text-base font-bold text-gray-900 leading-snug flex-1">{{ job.role }}</h3>
         <span class="flex-shrink-0 px-2.5 py-1 rounded-lg text-sm font-bold tabular-nums
           {% if score >= 80 %}bg-green-100 text-green-700
           {% elif score >= 65 %}bg-amber-100 text-amber-700
@@ -215,14 +240,8 @@
         </span>
       </div>
 
-      <!-- Role title -->
-      <h3 class="text-base font-bold text-gray-900 leading-snug mb-2">{{ job.role }}</h3>
-      {% if job.job_description %}
-      <p class="text-sm text-gray-600 mb-3 leading-relaxed whitespace-pre-line">{{ job.job_description }}</p>
-      {% endif %}
-
-      <!-- Key details row -->
-      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 mb-3">
+      <!-- Meta row -->
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 mb-4">
         {% if job.location %}
         <span class="flex items-center gap-1">
           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
@@ -238,39 +257,55 @@
         <span class="text-green-700 font-semibold">{{ job.salary_currency }} {{ job.salary }}</span>
         {% endif %}
         {% if job.experience_min is not none %}
-        <span>{{ job.experience_min }}–{{ job.experience_max }}y</span>
+        <span>{{ job.experience_min }}–{{ job.experience_max }}y exp</span>
         {% endif %}
         {% if job.date_posted %}
         <span class="text-gray-400 relative-date" data-date="{{ job.date_posted }}">{{ job.date_posted }}</span>
         {% endif %}
       </div>
 
-      <!-- CV Match bar (hidden when 0%) -->
-      {% if cv > 0 %}
-      <div class="mb-3">
-        <div class="flex items-center justify-between text-xs mb-1">
-          <span class="text-gray-400">CV Match</span>
-          <span class="font-bold {% if cv >= 70 %}text-green-600{% elif cv >= 40 %}text-amber-600{% else %}text-gray-400{% endif %}">{{ cv }}%</span>
-        </div>
-        <div class="w-full bg-gray-100 rounded-full h-1.5">
-          <div class="h-1.5 rounded-full transition-all {% if cv >= 70 %}bg-green-500{% elif cv >= 40 %}bg-amber-400{% else %}bg-gray-300{% endif %}"
-               style="width: {{ cv }}%"></div>
-        </div>
-      </div>
+      <!-- Job Description (full) -->
+      {% if job.job_description %}
+      <p class="text-sm text-gray-600 leading-relaxed whitespace-pre-line mb-4 pb-4 border-b border-gray-100">{{ job.job_description }}</p>
       {% endif %}
 
-      <!-- Contact info (compact) -->
-      {% if job.poster_email or job.poster_linkedin %}
-      <div class="mb-2 text-xs flex flex-wrap gap-2 text-blue-600">
-        {% if job.poster_name %}<span class="text-gray-500">{{ job.poster_name }}</span>{% endif %}
-        {% if job.poster_email %}<a href="mailto:{{ job.poster_email }}" class="hover:underline">{{ job.poster_email }}</a>{% endif %}
-        {% if job.poster_linkedin %}<a href="{{ job.poster_linkedin }}" target="_blank" rel="noopener" class="hover:underline">LinkedIn</a>{% endif %}
+      <!-- CV Match Circle + Contact -->
+      {% if cv > 0 or job.poster_email or job.poster_linkedin %}
+      <div class="flex items-center gap-4 mb-4">
+        {% if cv > 0 %}
+        <div class="flex items-center gap-2.5">
+          <!-- SVG circle: r=19, circumference = 2π×19 = 119.38 -->
+          <div class="relative w-14 h-14 flex-shrink-0">
+            <svg width="56" height="56" viewBox="0 0 56 56" class="w-14 h-14">
+              <circle cx="28" cy="28" r="22" fill="none" stroke="#e5e7eb" stroke-width="5"/>
+              <circle cx="28" cy="28" r="22" fill="none"
+                      stroke="{% if cv >= 70 %}#16a34a{% elif cv >= 40 %}#d97706{% else %}#9ca3af{% endif %}"
+                      stroke-width="5"
+                      stroke-linecap="round"
+                      stroke-dasharray="{{ (cv / 100 * 138.23) | round(1) }} 138.23"
+                      transform="rotate(-90 28 28)"/>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span class="text-xs font-bold leading-none {% if cv >= 70 %}text-green-700{% elif cv >= 40 %}text-amber-600{% else %}text-gray-500{% endif %}">{{ cv }}%</span>
+              <span class="text-[9px] text-gray-400 leading-none mt-0.5">match</span>
+            </div>
+          </div>
+          <span class="text-xs text-gray-500 font-medium">CV Match</span>
+        </div>
+        {% endif %}
+        {% if job.poster_email or job.poster_linkedin %}
+        <div class="text-xs flex flex-wrap gap-2 text-blue-600">
+          {% if job.poster_name %}<span class="text-gray-500">{{ job.poster_name }}</span>{% endif %}
+          {% if job.poster_email %}<a href="mailto:{{ job.poster_email }}" class="hover:underline">{{ job.poster_email }}</a>{% endif %}
+          {% if job.poster_linkedin %}<a href="{{ job.poster_linkedin }}" target="_blank" rel="noopener" class="hover:underline">LinkedIn</a>{% endif %}
+        </div>
+        {% endif %}
       </div>
       {% endif %}
 
       <!-- Actions -->
-      <div class="mt-auto pt-3 border-t border-gray-50">
-        <!-- Primary row: always visible -->
+      <div class="pt-3 border-t border-gray-100">
+        <!-- Primary row -->
         <div class="flex items-center gap-1.5 flex-wrap">
           {% if job.apply_url %}
           <a href="{{ job.apply_url }}" target="_blank" rel="noopener"
@@ -283,7 +318,6 @@
             </svg>
           </a>
           {% endif %}
-
           <select onchange="updateJobStatus('{{ job.job_id }}', this.value, this)"
                   class="text-xs rounded-lg border-gray-200 bg-white px-2 py-1.5 border focus:border-indigo-400 focus:ring-0 cursor-pointer">
             <option value="" disabled {% if s == 0 %}selected{% endif %}>Change status…</option>
@@ -294,29 +328,17 @@
             <option value="5" {% if s == 5 %}selected{% endif %}>Offer</option>
             <option value="6" {% if s == 6 %}selected{% endif %}>Rejected</option>
           </select>
-
-          <!-- More actions toggle -->
           <button onclick="toggleCardMenu('{{ job.job_id }}')"
                   id="more-btn-{{ job.job_id }}"
                   class="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600"
-                  title="More actions">
-            •••
-          </button>
-
-          <!-- Portal source, pushed right -->
-          <span class="ml-auto px-1.5 py-0.5 rounded text-xs bg-indigo-50 text-indigo-500">{{ job.portal }}</span>
+                  title="More actions">•••</button>
         </div>
-
-        <!-- Secondary row: hidden by default, revealed by ••• -->
+        <!-- Secondary row -->
         <div id="card-menu-{{ job.job_id }}" class="hidden mt-2 flex items-center gap-1.5 flex-wrap">
           <button onclick="toggleGapAnalysis('{{ job.job_id }}', this)"
-                  class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
-            Gap Analysis
-          </button>
+                  class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">Gap Analysis</button>
           <button onclick="fetchTailoredPoints('{{ job.job_id }}', this)"
-                  class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
-            Resume Tips
-          </button>
+                  class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">Resume Tips</button>
           <button onclick="toggleNotes('{{ job.job_id }}')"
                   id="notes-btn-{{ job.job_id }}"
                   class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-700">
@@ -324,13 +346,11 @@
           </button>
           <button onclick="hideJob('{{ job.job_id }}')"
                   class="inline-flex items-center gap-1 px-2 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-400 hover:bg-red-50 hover:text-red-500 hover:border-red-200"
-                  title="Not interested — hide this job">
-            Hide
-          </button>
+                  title="Not interested">Hide</button>
         </div>
       </div>
 
-      <!-- Gap Analysis Panel (hidden by default) -->
+      <!-- Gap Analysis Panel -->
       <div id="gap-{{ job.job_id }}" class="hidden mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
         <div class="flex items-center justify-between mb-2">
           <p class="font-semibold text-slate-700">Gap Analysis</p>
@@ -339,13 +359,13 @@
         <div id="gap-content-{{ job.job_id }}" class="text-slate-500 italic">Loading...</div>
       </div>
 
-      <!-- Tailored Points Panel (hidden by default) -->
+      <!-- Tailored Points Panel -->
       <div id="tailored-{{ job.job_id }}" class="hidden mt-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
         <p class="text-xs font-semibold text-amber-800 mb-1.5">Tailored Resume Points</p>
         <ul id="tailored-list-{{ job.job_id }}" class="space-y-1 text-xs text-amber-900"></ul>
       </div>
 
-      <!-- Notes Panel (hidden by default) -->
+      <!-- Notes Panel -->
       <div id="notes-{{ job.job_id }}" class="hidden mt-3 p-3 bg-yellow-50 rounded-xl border border-yellow-200">
         <p class="text-xs font-semibold text-yellow-800 mb-1.5">My Notes</p>
         <textarea id="notes-text-{{ job.job_id }}"
@@ -355,9 +375,7 @@
         <div class="flex justify-end mt-1.5">
           <button onclick="saveNote('{{ job.job_id }}')"
                   id="notes-save-{{ job.job_id }}"
-                  class="px-3 py-1 bg-yellow-600 text-white text-xs font-semibold rounded-lg hover:bg-yellow-700">
-            Save
-          </button>
+                  class="px-3 py-1 bg-yellow-600 text-white text-xs font-semibold rounded-lg hover:bg-yellow-700">Save</button>
         </div>
       </div>
 
@@ -365,7 +383,6 @@
   </div>
   {% endfor %}
 </div>
-
 
 {% else %}
 <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
@@ -954,6 +971,49 @@ function toggleCardMenu(jobId) {
   menu.classList.toggle('hidden', isOpen);
   if (btn) btn.classList.toggle('bg-gray-100', !isOpen);
 }
+
+// ── Persona Tabs ──────────────────────────────────────────────────────────────
+const PERSONA_PATTERNS = {
+  all:      null,
+  pm:       /product\s*(manager|owner|lead|head|strategy|management)|associate\s*pm|\bapm\b/i,
+  analyst:  /analyst/i,
+  ai:       /\bai\b|machine\s*learning|\bml\b|artificial\s*intelligence|deep\s*learning|\bllm\b|generative/i,
+};
+
+function switchPersona(key, btn) {
+  document.querySelectorAll('.persona-tab').forEach(t => {
+    t.classList.remove('border-indigo-600', 'bg-indigo-600', 'text-white');
+    t.classList.add('border-gray-200', 'bg-white', 'text-gray-600');
+  });
+  btn.classList.remove('border-gray-200', 'bg-white', 'text-gray-600');
+  btn.classList.add('border-indigo-600', 'bg-indigo-600', 'text-white');
+
+  const pattern = PERSONA_PATTERNS[key];
+  let visible = 0;
+  document.querySelectorAll('.job-card').forEach(card => {
+    const show = !pattern || pattern.test(card.dataset.role || '');
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  const countEl = document.querySelector('p.text-sm.text-gray-400');
+  if (countEl) countEl.textContent = visible + ' results';
+}
+
+(function initPersonaCounts() {
+  const cards = document.querySelectorAll('.job-card');
+  const counts = { all: 0, pm: 0, analyst: 0, ai: 0 };
+  cards.forEach(card => {
+    const role = card.dataset.role || '';
+    counts.all++;
+    if (PERSONA_PATTERNS.pm.test(role))      counts.pm++;
+    if (PERSONA_PATTERNS.analyst.test(role)) counts.analyst++;
+    if (PERSONA_PATTERNS.ai.test(role))      counts.ai++;
+  });
+  ['all', 'pm', 'analyst', 'ai'].forEach(key => {
+    const el = document.getElementById('ptab-count-' + key);
+    if (el) el.textContent = counts[key];
+  });
+})();
 
 function fetchTailoredPoints(jobId, btn) {
   const panel = document.getElementById('tailored-' + jobId);
