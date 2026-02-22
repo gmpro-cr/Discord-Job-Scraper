@@ -220,46 +220,21 @@
 {% if jobs %}
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" id="job-list">
   {% for job in jobs %}
-  {% set status_colors = {
-    0: 'border-l-gray-300', 1: 'border-l-green-400', 2: 'border-l-blue-400',
-    3: 'border-l-cyan-400', 4: 'border-l-orange-400', 5: 'border-l-emerald-500', 6: 'border-l-red-400'
-  } %}
-  {% set status_labels = {
-    0: ('New', 'bg-gray-100 text-gray-500'),
-    1: ('Applied', 'bg-green-100 text-green-700'),
-    2: ('Saved', 'bg-blue-100 text-blue-700'),
-    3: ('Phone Screen', 'bg-cyan-100 text-cyan-700'),
-    4: ('Interview', 'bg-orange-100 text-orange-700'),
-    5: ('Offer', 'bg-emerald-100 text-emerald-700'),
-    6: ('Rejected', 'bg-red-100 text-red-600')
-  } %}
   {% set s = job.applied_status | int %}
   {% set cv = job.cv_score | default(0) | int %}
   {% set score = job.relevance_score | int %}
-  {% set label_info = status_labels.get(s, ('New', 'bg-gray-100 text-gray-500')) %}
 
   <div class="job-card bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col h-full"
        id="job-{{ job.job_id }}"
        data-role="{{ job.role | lower }}">
 
     <!-- ── Company Bar ──────────────────────────────────────────────── -->
-    {% set dark_status = {
-      0: 'bg-white/10 text-white/60',
-      1: 'bg-emerald-400/20 text-emerald-300',
-      2: 'bg-blue-400/20 text-blue-300',
-      3: 'bg-cyan-400/20 text-cyan-300',
-      4: 'bg-orange-400/20 text-orange-300',
-      5: 'bg-emerald-400/30 text-emerald-200',
-      6: 'bg-red-400/20 text-red-300'
-    } %}
     <div class="flex items-center justify-between px-4 py-3 bg-gray-900 rounded-t-xl gap-3">
       <div class="flex items-center gap-2 min-w-0">
         <span class="text-sm font-bold text-white truncate" style="font-family:'DM Sans',sans-serif">{{ job.company }}</span>
         {% if job.company_funding_stage %}
         <span class="flex-shrink-0 px-1.5 py-0.5 rounded text-xs bg-amber-400/20 text-amber-300 font-medium">{{ job.company_funding_stage }}</span>
         {% endif %}
-        <span id="status-pill-{{ job.job_id }}"
-              class="flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold {{ dark_status.get(s, 'bg-white/10 text-white/60') }}">{{ label_info[0] }}</span>
       </div>
       <span class="flex-shrink-0 px-2 py-0.5 rounded text-xs bg-white/10 text-white/60 font-medium">{{ job.portal }}</span>
     </div>
@@ -311,38 +286,23 @@
         {% endif %}
       </div>
 
-      <!-- CV Match Circle + Contact (always rendered for symmetry) -->
-      <div class="flex items-center gap-4 mb-4 min-h-[3.5rem]">
+      <!-- CV Match + Contact (only shown when data exists) -->
+      {% if cv > 0 or job.poster_email or job.poster_linkedin %}
+      <div class="flex items-center gap-4 mb-4">
         {% if cv > 0 %}
-        <div class="flex items-center gap-2.5">
-          <div class="relative w-14 h-14 flex-shrink-0">
-            <svg width="56" height="56" viewBox="0 0 56 56" class="w-14 h-14">
-              <circle cx="28" cy="28" r="22" fill="none" stroke="#e5e7eb" stroke-width="5"/>
-              <circle cx="28" cy="28" r="22" fill="none"
-                      stroke="{% if cv >= 70 %}#16a34a{% elif cv >= 40 %}#d97706{% else %}#9ca3af{% endif %}"
-                      stroke-width="5"
-                      stroke-linecap="round"
-                      stroke-dasharray="{{ (cv / 100 * 138.23) | round(1) }} 138.23"
-                      transform="rotate(-90 28 28)"/>
-            </svg>
-            <div class="absolute inset-0 flex flex-col items-center justify-center">
-              <span class="text-xs font-bold leading-none {% if cv >= 70 %}text-green-700{% elif cv >= 40 %}text-amber-600{% else %}text-gray-500{% endif %}">{{ cv }}%</span>
-              <span class="text-[9px] text-gray-400 leading-none mt-0.5">match</span>
-            </div>
+        <div class="relative w-12 h-12 flex-shrink-0">
+          <svg width="48" height="48" viewBox="0 0 48 48" class="w-12 h-12">
+            <circle cx="24" cy="24" r="19" fill="none" stroke="#e5e7eb" stroke-width="4"/>
+            <circle cx="24" cy="24" r="19" fill="none"
+                    stroke="{% if cv >= 70 %}#16a34a{% elif cv >= 40 %}#d97706{% else %}#9ca3af{% endif %}"
+                    stroke-width="4"
+                    stroke-linecap="round"
+                    stroke-dasharray="{{ (cv / 100 * 119.38) | round(1) }} 119.38"
+                    transform="rotate(-90 24 24)"/>
+          </svg>
+          <div class="absolute inset-0 flex items-center justify-center">
+            <span class="text-[10px] font-bold leading-none {% if cv >= 70 %}text-green-700{% elif cv >= 40 %}text-amber-600{% else %}text-gray-500{% endif %}">{{ cv }}%</span>
           </div>
-          <span class="text-xs text-gray-500 font-medium">CV Match</span>
-        </div>
-        {% else %}
-        <div class="flex items-center gap-2.5">
-          <div class="relative w-14 h-14 flex-shrink-0">
-            <svg width="56" height="56" viewBox="0 0 56 56" class="w-14 h-14">
-              <circle cx="28" cy="28" r="22" fill="none" stroke="#e5e7eb" stroke-width="5"/>
-            </svg>
-            <div class="absolute inset-0 flex flex-col items-center justify-center">
-              <span class="text-[9px] text-gray-400 leading-none text-center">No CV<br>data</span>
-            </div>
-          </div>
-          <span class="text-xs text-gray-300 font-medium">CV Match</span>
         </div>
         {% endif %}
         {% if job.poster_email or job.poster_linkedin %}
@@ -353,6 +313,7 @@
         </div>
         {% endif %}
       </div>
+      {% endif %}
 
       <!-- Actions (pinned to bottom) -->
       <div class="mt-auto pt-3 border-t border-gray-100">
@@ -597,24 +558,6 @@ function updateJobStatus(jobId, statusVal, selectEl) {
   .then(data => {
     if (!data.ok) return;
     const meta = STATUS_META[status] || STATUS_META[0];
-
-    // Update border color on card
-    const card = document.getElementById('job-' + jobId);
-    if (card) {
-      const borderClasses = Object.values(STATUS_META).map(m => m.border);
-      card.classList.remove(...borderClasses);
-      card.classList.add(meta.border);
-    }
-
-    // Update status pill badge
-    const pill = document.getElementById('status-pill-' + jobId);
-    if (pill) {
-      const allBadge = Object.values(STATUS_META).flatMap(m => m.badge.split(' '));
-      pill.classList.remove(...allBadge);
-      meta.badge.split(' ').forEach(c => pill.classList.add(c));
-      pill.textContent = meta.label;
-    }
-
     showToast(`Marked as ${meta.label}`);
   })
   .catch(err => console.error('Error updating status:', err));
