@@ -519,7 +519,7 @@ if (filterForm) {
   filterForm.addEventListener('submit', function(e) {
     e.preventDefault();
     const query = (document.getElementById('nlp-search-input').value || '').trim();
-    const isNlp = query.length > 0 && (query.split(/\s+/).length > 2 || /\d|remote|hybrid|lakh|salary|bangalore|mumbai|delhi|hyderabad|pune|chennai|above|below|senior|junior|startup|years?/i.test(query));
+    const isNlp = query.length > 0 && /\d|remote|hybrid|lakh|₹|salary|above|below|senior|junior|fresher|startup|years?|bangalore|mumbai|delhi|hyderabad|pune|chennai|kolkata|noida|gurugram|gurgaon|work from home|wfh/i.test(query);
 
     if (isNlp) {
       runNlpSearch(query);
