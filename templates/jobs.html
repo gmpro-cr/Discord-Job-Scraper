@@ -5,58 +5,46 @@
 <style>
   .jobs-page {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
-    background: #09090b;
+    background: #f4f4f5;
     margin: -1.5rem;
     padding: 1.5rem;
-    min-height: calc(100vh - 0rem);
+    min-height: calc(100vh - 4rem);
   }
   .hc-mono { font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace; }
   /* Cards */
   .job-card {
-    background: #18181b;
-    border: 1px solid #27272a;
+    background: #fff;
+    border: 1px solid #e4e4e7;
     border-radius: 16px;
     transition: box-shadow .18s, border-color .18s, transform .18s;
     overflow: hidden;
     display: flex;
     flex-direction: column;
   }
-  .job-card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.45); border-color: #52525b; transform: translateY(-2px); }
+  .job-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); border-color: #d4d4d8; transform: translateY(-2px); }
   /* Score badges */
-  .score-high { background:#fafafa; color:#18181b; }
-  .score-mid  { background:#451a03; color:#fbbf24; }
-  .score-low  { background:#27272a; color:#71717a; }
+  .score-high { background:#18181b; color:#fff; }
+  .score-mid  { background:#fef3c7; color:#92400e; }
+  .score-low  { background:#f4f4f5; color:#71717a; }
   /* Tag pills */
-  .tag-pill   { background:#27272a; border:1px solid #3f3f46; border-radius:999px; padding:2px 9px; font-size:11px; color:#a1a1aa; display:inline-block; }
-  .tag-remote { background:#052e16; border:1px solid #166534; border-radius:999px; padding:2px 9px; font-size:11px; color:#4ade80; display:inline-block; }
-  .tag-hybrid { background:#431407; border:1px solid #7c2d12; border-radius:999px; padding:2px 9px; font-size:11px; color:#fb923c; display:inline-block; }
-  .tag-yoe    { background:#1e1b4b; border:1px solid #3730a3; border-radius:999px; padding:2px 9px; font-size:11px; color:#818cf8; display:inline-block; }
+  .tag-pill   { background:#f4f4f5; border:1px solid #e4e4e7; border-radius:999px; padding:2px 9px; font-size:11px; color:#52525b; display:inline-block; }
+  .tag-remote { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:999px; padding:2px 9px; font-size:11px; color:#15803d; display:inline-block; }
+  .tag-hybrid { background:#fff7ed; border:1px solid #fed7aa; border-radius:999px; padding:2px 9px; font-size:11px; color:#c2410c; display:inline-block; }
+  .tag-yoe    { background:#eef2ff; border:1px solid #c7d2fe; border-radius:999px; padding:2px 9px; font-size:11px; color:#4338ca; display:inline-block; }
   /* Persona underline tabs */
   .persona-tab { transition: color .12s, border-color .12s; border-bottom: 2px solid transparent; padding-bottom: 10px; }
-  .persona-tab.active { color: #fafafa; border-bottom-color: #fafafa; }
-  .persona-tab:not(.active) { color: #52525b; }
-  .persona-tab:not(.active):hover { color: #a1a1aa; }
+  .persona-tab.active { color: #111827; border-bottom-color: #111827; }
+  .persona-tab:not(.active) { color: #9ca3af; }
+  .persona-tab:not(.active):hover { color: #4b5563; }
   /* Buttons */
-  .apply-btn { background:#fafafa; color:#18181b; transition:background .12s; border-radius:8px; }
-  .apply-btn:hover { background:#d4d4d8; }
-  .filter-submit { background:#fafafa; color:#18181b; transition:background .12s; }
-  .filter-submit:hover { background:#d4d4d8; }
-  /* Filter bar dark override */
-  #filter-form { background:#18181b !important; border-color:#27272a !important; }
-  #filter-form input, #filter-form select { background:#27272a !important; border-color:#3f3f46 !important; color:#e4e4e7 !important; }
-  #filter-form input::placeholder { color:#71717a; }
-  #filter-form .border-gray-100 { border-color:#27272a !important; }
+  .apply-btn { background:#18181b; color:#fff; transition:background .12s; border-radius:8px; }
+  .apply-btn:hover { background:#3f3f46; }
+  .filter-submit { background:#18181b; color:#fff; transition:background .12s; }
+  .filter-submit:hover { background:#3f3f46; }
   /* Card select + more btn */
-  .card-select { background:#27272a; border:1px solid #3f3f46; color:#a1a1aa; border-radius:8px; font-size:12px; cursor:pointer; }
-  .card-more-btn { background:transparent; border:1px solid #3f3f46; color:#71717a; border-radius:8px; padding:4px 8px; font-size:12px; cursor:pointer; }
-  .card-more-btn:hover { background:#27272a; border-color:#52525b; color:#a1a1aa; }
-  /* Search tools panel dark */
-  #search-tools-panel .bg-white { background:#18181b !important; border-color:#27272a !important; }
-  #search-tools-panel .border-gray-100, #search-tools-panel .border-b { border-color:#27272a !important; }
-  #search-tools-panel input { background:#27272a !important; border-color:#3f3f46 !important; color:#e4e4e7 !important; }
-  #search-tools-panel input::placeholder { color:#71717a; }
-  #search-tools-panel .text-gray-800 { color:#e4e4e7 !important; }
-  #search-tools-panel .text-gray-400 { color:#71717a !important; }
+  .card-select { background:#fff; border:1px solid #e4e4e7; color:#374151; border-radius:8px; font-size:12px; cursor:pointer; }
+  .card-more-btn { background:transparent; border:1px solid #e4e4e7; color:#9ca3af; border-radius:8px; padding:4px 8px; font-size:12px; cursor:pointer; }
+  .card-more-btn:hover { background:#f4f4f5; border-color:#d4d4d8; color:#374151; }
 </style>
 {% endblock %}
 
@@ -65,11 +53,11 @@
 <!-- Page Header -->
 <div class="mb-4 flex items-center justify-between">
   <div>
-    <h1 class="text-xl font-semibold text-zinc-100 tracking-tight">Jobs</h1>
-    <p class="hc-mono text-xs text-zinc-500 mt-0.5">{{ total }} results</p>
+    <h1 class="text-xl font-semibold text-gray-900 tracking-tight">Jobs</h1>
+    <p class="hc-mono text-xs text-gray-400 mt-0.5">{{ total }} results</p>
   </div>
   <div class="flex items-center gap-2">
-    <button onclick="toggleSection('search-tools-panel')" class="text-sm text-zinc-400 hover:text-zinc-100 flex items-center gap-1 px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700">
+    <button onclick="toggleSection('search-tools-panel')" class="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
       Search
     </button>
@@ -228,7 +216,7 @@
 </form>
 
 <!-- Persona Tabs -->
-<div class="flex gap-6 mb-4 border-b border-zinc-800">
+<div class="flex gap-6 mb-4 border-b border-gray-200">
   <button data-persona="all" onclick="switchPersona('all', this)"
           class="persona-tab active text-sm font-medium -mb-px">
     All <span class="hc-mono text-xs ml-1" id="ptab-count-all">{{ total }}</span>
@@ -268,13 +256,13 @@
             {{ (job.company or '?')[0] | upper }}
           </div>
           <div>
-            <p class="text-sm font-medium text-zinc-100 leading-tight">{{ job.company | truncate(22, true, '…') }}</p>
-            <p class="hc-mono text-[10px] text-zinc-500 mt-0.5">{{ job.portal }}</p>
+            <p class="text-sm font-medium text-gray-900 leading-tight">{{ job.company | truncate(22, true, '…') }}</p>
+            <p class="hc-mono text-[10px] text-gray-400 mt-0.5">{{ job.portal }}</p>
           </div>
         </div>
         <div class="flex flex-col items-end gap-1">
           {% if job.date_posted %}
-          <span class="hc-mono text-[10px] text-zinc-500 relative-date" data-date="{{ job.date_posted }}">{{ job.date_posted }}</span>
+          <span class="hc-mono text-[10px] text-gray-400 relative-date" data-date="{{ job.date_posted }}">{{ job.date_posted }}</span>
           {% endif %}
           <span class="hc-mono text-xs font-bold tabular-nums px-2 py-0.5 rounded
             {% if score >= 80 %}score-high{% elif score >= 65 %}score-mid{% else %}score-low{% endif %}">
@@ -284,12 +272,12 @@
       </div>
 
       <!-- Row 2: Job title -->
-      <h3 class="text-[15px] font-semibold text-zinc-50 leading-snug line-clamp-2 mb-3">{{ job.role }}</h3>
+      <h3 class="text-[15px] font-semibold text-gray-900 leading-snug line-clamp-2 mb-3">{{ job.role }}</h3>
 
       <!-- Row 3: Location + work type tags -->
       <div class="flex flex-wrap items-center gap-1.5 mb-3">
         {% if job.location %}
-        <span class="flex items-center gap-1 text-xs text-zinc-400">
+        <span class="flex items-center gap-1 text-xs text-gray-500">
           <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -317,13 +305,13 @@
 
       <!-- Row 5: Description snippet -->
       {% if job.job_description %}
-      <p class="text-xs text-zinc-500 leading-relaxed line-clamp-2 mb-3 flex-1">{{ job.job_description }}</p>
+      <p class="text-xs text-gray-400 leading-relaxed line-clamp-2 mb-3 flex-1">{{ job.job_description }}</p>
       {% else %}<div class="flex-1"></div>{% endif %}
 
       <!-- Contact info if available -->
       {% if job.poster_email or job.poster_linkedin %}
-      <div class="hc-mono text-[11px] flex flex-wrap gap-2 text-indigo-400 mb-2">
-        {% if job.poster_name %}<span class="text-zinc-500">{{ job.poster_name }}</span>{% endif %}
+      <div class="hc-mono text-[11px] flex flex-wrap gap-2 text-indigo-500 mb-2">
+        {% if job.poster_name %}<span class="text-gray-400">{{ job.poster_name }}</span>{% endif %}
         {% if job.poster_email %}<a href="mailto:{{ job.poster_email }}" class="hover:underline">{{ job.poster_email }}</a>{% endif %}
         {% if job.poster_linkedin %}<a href="{{ job.poster_linkedin }}" target="_blank" rel="noopener" class="hover:underline">LinkedIn</a>{% endif %}
       </div>
@@ -332,18 +320,18 @@
       <!-- CV match progress bar -->
       {% if cv > 0 %}
       <div class="flex items-center gap-1.5 mb-1">
-        <div class="flex-1 h-1 rounded-full bg-zinc-800 overflow-hidden">
-          <div class="h-full rounded-full {% if cv >= 70 %}bg-emerald-500{% elif cv >= 40 %}bg-amber-500{% else %}bg-zinc-600{% endif %}"
+        <div class="flex-1 h-1 rounded-full bg-gray-200 overflow-hidden">
+          <div class="h-full rounded-full {% if cv >= 70 %}bg-emerald-500{% elif cv >= 40 %}bg-amber-500{% else %}bg-gray-400{% endif %}"
                style="width:{{ cv }}%"></div>
         </div>
-        <span class="hc-mono text-[10px] text-zinc-500">{{ cv }}% match</span>
+        <span class="hc-mono text-[10px] text-gray-400">{{ cv }}% match</span>
       </div>
       {% endif %}
 
     </div>
 
     <!-- Card footer: actions -->
-    <div class="px-4 pb-4 pt-3 border-t border-zinc-800 flex items-center gap-1.5 flex-wrap">
+    <div class="px-4 pb-4 pt-3 border-t border-gray-100 flex items-center gap-1.5 flex-wrap">
       {% if job.apply_url %}
       <a href="{{ job.apply_url }}" target="_blank" rel="noopener"
          onclick="onApplyClick('{{ job.job_id }}')"
@@ -366,38 +354,38 @@
     </div>
 
     <!-- Secondary actions (expandable) -->
-    <div id="card-menu-{{ job.job_id }}" class="hidden px-4 pb-3 flex items-center gap-1.5 flex-wrap border-t border-zinc-800 pt-2">
+    <div id="card-menu-{{ job.job_id }}" class="hidden px-4 pb-3 flex items-center gap-1.5 flex-wrap border-t border-gray-100 pt-2">
       <button onclick="toggleGapAnalysis('{{ job.job_id }}', this)"
-              class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-zinc-700 text-zinc-400 hover:bg-zinc-800">Gap Analysis</button>
+              class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">Gap Analysis</button>
       <button onclick="fetchTailoredPoints('{{ job.job_id }}', this)"
-              class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-zinc-700 text-zinc-400 hover:bg-zinc-800">Resume Tips</button>
+              class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">Resume Tips</button>
       <button onclick="toggleNotes('{{ job.job_id }}')"
               id="notes-btn-{{ job.job_id }}"
-              class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-zinc-700 text-zinc-400 hover:bg-amber-900/30 hover:border-amber-800 hover:text-amber-400">
+              class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-700">
         Notes{% if job.user_notes %} <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block ml-0.5"></span>{% endif %}
       </button>
       <button onclick="hideJob('{{ job.job_id }}')"
-              class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg border border-zinc-700 text-zinc-500 hover:bg-red-900/30 hover:text-red-400 hover:border-red-800">Hide</button>
+              class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg border border-gray-200 text-gray-400 hover:bg-red-50 hover:text-red-500 hover:border-red-200">Hide</button>
     </div>
 
     <!-- Expanded panels -->
-    <div id="gap-{{ job.job_id }}" class="hidden mx-4 mb-3 p-3 bg-zinc-800/50 rounded-xl border border-zinc-700 text-xs">
+    <div id="gap-{{ job.job_id }}" class="hidden mx-4 mb-3 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
       <div class="flex items-center justify-between mb-2">
-        <p class="font-semibold text-zinc-200">Gap Analysis</p>
-        <div id="gap-score-{{ job.job_id }}" class="font-bold text-zinc-400"></div>
+        <p class="font-semibold text-slate-700">Gap Analysis</p>
+        <div id="gap-score-{{ job.job_id }}" class="font-bold text-slate-500"></div>
       </div>
-      <div id="gap-content-{{ job.job_id }}" class="text-zinc-400 italic">Loading...</div>
+      <div id="gap-content-{{ job.job_id }}" class="text-slate-500 italic">Loading...</div>
     </div>
 
-    <div id="tailored-{{ job.job_id }}" class="hidden mx-4 mb-3 p-3 bg-amber-950/30 rounded-xl border border-amber-900/50">
-      <p class="text-xs font-semibold text-amber-400 mb-1.5">Tailored Resume Points</p>
-      <ul id="tailored-list-{{ job.job_id }}" class="space-y-1 text-xs text-amber-300/80"></ul>
+    <div id="tailored-{{ job.job_id }}" class="hidden mx-4 mb-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
+      <p class="text-xs font-semibold text-amber-800 mb-1.5">Tailored Resume Points</p>
+      <ul id="tailored-list-{{ job.job_id }}" class="space-y-1 text-xs text-amber-900"></ul>
     </div>
 
-    <div id="notes-{{ job.job_id }}" class="hidden mx-4 mb-3 p-3 bg-amber-950/20 rounded-xl border border-amber-900/40">
-      <p class="text-xs font-semibold text-amber-400 mb-1.5">My Notes</p>
+    <div id="notes-{{ job.job_id }}" class="hidden mx-4 mb-3 p-3 bg-yellow-50 rounded-xl border border-yellow-200">
+      <p class="text-xs font-semibold text-yellow-800 mb-1.5">My Notes</p>
       <textarea id="notes-text-{{ job.job_id }}"
-                class="w-full text-xs rounded-lg border border-zinc-700 focus:border-amber-700 focus:ring-0 p-2 bg-zinc-900 text-zinc-200 resize-none"
+                class="w-full text-xs rounded-lg border border-yellow-200 focus:border-yellow-400 focus:ring-1 focus:ring-yellow-300 p-2 bg-white resize-none"
                 rows="3"
                 placeholder="Add interview notes, contacts, follow-up reminders...">{{ job.user_notes or '' }}</textarea>
       <div class="flex justify-end mt-1.5">
@@ -412,9 +400,9 @@
 </div>
 
 {% else %}
-<div class="rounded-xl border border-zinc-800 p-12 text-center" style="background:#18181b">
-  <p class="text-zinc-400 text-sm">No jobs found.</p>
-  <p class="hc-mono text-xs text-zinc-600 mt-1">Try broadening your filters or run a live search.</p>
+<div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
+  <p class="text-gray-500 text-sm">No jobs found.</p>
+  <p class="hc-mono text-xs text-gray-400 mt-1">Try broadening your filters or run a live search.</p>
 </div>
 {% endif %}
 </div>{# close .jobs-page #}
