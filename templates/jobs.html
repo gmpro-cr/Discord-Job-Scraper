@@ -241,99 +241,76 @@
   {% set score = job.relevance_score | int %}
   {% set avatar_bg = avatar_colors[loop.index0 % 8] %}
 
-  <div class="job-card" id="job-{{ job.job_id }}" data-role="{{ job.role | lower }}">
-    <div class="p-4 flex-1 flex flex-col">
+  <div class="job-card" id="job-{{ job.job_id }}" data-role="{{ job.role | lower }}"
+       data-title="{{ job.role | e }}"
+       data-company="{{ job.company | e }}"
+       data-portal="{{ job.portal | e }}"
+       data-location="{{ job.location | e }}"
+       data-remote="{{ job.remote_status | e }}"
+       data-salary="{{ job.salary | e }}"
+       data-currency="{{ job.salary_currency or '₹' }}"
+       data-exp-min="{{ job.experience_min if job.experience_min is not none else '' }}"
+       data-exp-max="{{ job.experience_max if job.experience_max is not none else '' }}"
+       data-score="{{ score }}"
+       data-cv="{{ cv }}"
+       data-date="{{ job.date_posted | e }}"
+       data-funding="{{ job.company_funding_stage | e }}"
+       data-description="{{ job.job_description | e }}"
+       data-apply-url="{{ job.apply_url | e }}"
+       data-poster-name="{{ job.poster_name | e }}"
+       data-poster-email="{{ job.poster_email | e }}"
+       data-poster-linkedin="{{ job.poster_linkedin | e }}"
+       data-avatar-bg="{{ avatar_bg }}">
 
-      <!-- Row 1: Company avatar + name + portal + date + score -->
-      <div class="flex items-start justify-between mb-3">
-        <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center text-sm font-bold text-white"
+    <!-- Clickable card body -->
+    <div class="p-3 flex-1 flex flex-col cursor-pointer" onclick="openJobModal(this.closest('.job-card'))">
+
+      <!-- Row 1: Avatar + company + score -->
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold text-white"
                style="background:{{ avatar_bg }}">
             {{ (job.company or '?')[0] | upper }}
           </div>
           <div>
-            <p class="text-sm font-medium text-gray-900 leading-tight">{{ job.company | truncate(22, true, '…') }}</p>
-            <p class="hc-mono text-[10px] text-gray-400 mt-0.5">{{ job.portal }}</p>
+            <p class="text-xs font-medium text-gray-900 leading-tight">{{ job.company | truncate(20, true, '…') }}</p>
+            <p class="hc-mono text-[10px] text-gray-400">{{ job.portal }}</p>
           </div>
         </div>
-        <div class="flex flex-col items-end gap-1">
-          {% if job.date_posted %}
-          <span class="hc-mono text-[10px] text-gray-400 relative-date" data-date="{{ job.date_posted }}">{{ job.date_posted }}</span>
-          {% endif %}
-          <span class="hc-mono text-xs font-bold tabular-nums px-2 py-0.5 rounded
-            {% if score >= 80 %}score-high{% elif score >= 65 %}score-mid{% else %}score-low{% endif %}">
-            {{ score }}
-          </span>
-        </div>
+        <span class="hc-mono text-xs font-bold tabular-nums px-1.5 py-0.5 rounded
+          {% if score >= 80 %}score-high{% elif score >= 65 %}score-mid{% else %}score-low{% endif %}">
+          {{ score }}
+        </span>
       </div>
 
       <!-- Row 2: Job title -->
-      <h3 class="text-[15px] font-semibold text-gray-900 leading-snug line-clamp-2 mb-3">{{ job.role }}</h3>
+      <h3 class="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 mb-2">{{ job.role }}</h3>
 
-      <!-- Row 3: Location + work type tags -->
-      <div class="flex flex-wrap items-center gap-1.5 mb-3">
+      <!-- Row 3: Location + type tags -->
+      <div class="flex flex-wrap items-center gap-1 mb-1">
         {% if job.location %}
-        <span class="flex items-center gap-1 text-xs text-gray-500">
-          <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-          </svg>
-          {{ job.location | truncate(18, true, '…') }}
-        </span>
+        <span class="text-[11px] text-gray-400">{{ job.location | truncate(16, true, '…') }}</span>
         {% endif %}
         {% if job.remote_status == 'remote' %}<span class="tag-remote">Remote</span>
         {% elif job.remote_status == 'hybrid' %}<span class="tag-hybrid">Hybrid</span>
         {% else %}<span class="tag-pill">Onsite</span>{% endif %}
+        {% if job.experience_min is not none %}<span class="tag-yoe">{{ job.experience_min }}+ yrs</span>{% endif %}
       </div>
 
-      <!-- Row 4: Salary + YOE + funding stage -->
-      <div class="flex flex-wrap items-center gap-1.5 mb-3">
-        {% if job.salary %}
-        <span class="hc-mono text-xs font-semibold text-emerald-400">{{ job.salary_currency or '₹' }}{{ job.salary }}</span>
-        {% endif %}
-        {% if job.experience_min is not none %}
-        <span class="tag-yoe">{{ job.experience_min }}+ yrs</span>
-        {% endif %}
-        {% if job.company_funding_stage %}
-        <span class="tag-pill">{{ job.company_funding_stage }}</span>
-        {% endif %}
-      </div>
-
-      <!-- Row 5: Description snippet -->
-      {% if job.job_description %}
-      <p class="text-xs text-gray-400 leading-relaxed line-clamp-2 mb-3 flex-1">{{ job.job_description }}</p>
-      {% else %}<div class="flex-1"></div>{% endif %}
-
-      <!-- Contact info if available -->
-      {% if job.poster_email or job.poster_linkedin %}
-      <div class="hc-mono text-[11px] flex flex-wrap gap-2 text-indigo-500 mb-2">
-        {% if job.poster_name %}<span class="text-gray-400">{{ job.poster_name }}</span>{% endif %}
-        {% if job.poster_email %}<a href="mailto:{{ job.poster_email }}" class="hover:underline">{{ job.poster_email }}</a>{% endif %}
-        {% if job.poster_linkedin %}<a href="{{ job.poster_linkedin }}" target="_blank" rel="noopener" class="hover:underline">LinkedIn</a>{% endif %}
-      </div>
-      {% endif %}
-
-      <!-- CV match progress bar -->
-      {% if cv > 0 %}
-      <div class="flex items-center gap-1.5 mb-1">
-        <div class="flex-1 h-1 rounded-full bg-gray-200 overflow-hidden">
-          <div class="h-full rounded-full {% if cv >= 70 %}bg-emerald-500{% elif cv >= 40 %}bg-amber-500{% else %}bg-gray-400{% endif %}"
-               style="width:{{ cv }}%"></div>
-        </div>
-        <span class="hc-mono text-[10px] text-gray-400">{{ cv }}% match</span>
-      </div>
+      {% if job.salary %}
+      <p class="hc-mono text-xs font-semibold text-emerald-600 mt-1">{{ job.salary_currency or '₹' }}{{ job.salary }}</p>
       {% endif %}
 
     </div>
 
     <!-- Card footer: apply button -->
-    <div class="px-4 pb-4 pt-3 border-t border-gray-100">
+    <div class="px-3 pb-3 pt-2 border-t border-gray-100">
       {% if job.apply_url %}
       <a href="{{ job.apply_url }}" target="_blank" rel="noopener"
-         onclick="onApplyClick('{{ job.job_id }}')"
-         class="apply-btn w-full block text-center py-2.5 text-sm font-semibold">Apply ↗</a>
+         onclick="event.stopPropagation(); onApplyClick('{{ job.job_id }}')"
+         class="apply-btn w-full block text-center py-2 text-sm font-semibold">Apply ↗</a>
       {% else %}
-      <div class="w-full py-2.5 text-center text-sm text-gray-300 border border-gray-100 rounded-lg">No link available</div>
+      <div class="w-full py-2 text-center text-xs text-gray-300 border border-gray-100 rounded-lg">No link</div>
       {% endif %}
     </div>
 
@@ -348,6 +325,61 @@
 </div>
 {% endif %}
 </div>{# close .jobs-page #}
+
+<!-- Job Detail Modal -->
+<div id="job-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeJobModal()"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+
+    <!-- Modal header -->
+    <div class="flex items-start gap-3 px-6 py-5 border-b border-gray-100">
+      <div id="modal-avatar" class="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center text-base font-bold text-white"></div>
+      <div class="flex-1 min-w-0">
+        <h2 id="modal-title" class="text-lg font-semibold text-gray-900 leading-snug"></h2>
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
+          <span id="modal-company" class="text-sm font-medium text-gray-700"></span>
+          <span class="text-gray-300 text-xs">·</span>
+          <span id="modal-portal" class="hc-mono text-xs text-gray-400"></span>
+          <span id="modal-date-sep" class="text-gray-300 text-xs hidden">·</span>
+          <span id="modal-date" class="hc-mono text-xs text-gray-400 relative-date"></span>
+        </div>
+      </div>
+      <button onclick="closeJobModal()" class="text-gray-400 hover:text-gray-700 ml-2 flex-shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Modal meta row -->
+    <div class="flex flex-wrap items-center gap-2 px-6 py-3 border-b border-gray-50 bg-gray-50">
+      <span id="modal-remote-tag"></span>
+      <span id="modal-location" class="text-xs text-gray-500"></span>
+      <span id="modal-exp" class="tag-yoe hidden"></span>
+      <span id="modal-funding" class="tag-pill hidden"></span>
+      <span id="modal-salary" class="hc-mono text-xs font-semibold text-emerald-600 hidden"></span>
+      <span id="modal-cv" class="hc-mono text-xs text-gray-400 hidden"></span>
+      <span id="modal-score" class="hc-mono text-xs font-bold tabular-nums px-2 py-0.5 rounded ml-auto"></span>
+    </div>
+
+    <!-- Modal body: description -->
+    <div class="flex-1 overflow-y-auto px-6 py-5">
+      <div id="modal-description" class="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap"></div>
+      <div id="modal-no-desc" class="hidden text-sm text-gray-400 italic">No job description available.</div>
+      <div id="modal-contact" class="hidden mt-4 pt-4 border-t border-gray-100">
+        <p class="text-xs font-semibold text-gray-500 mb-1">Contact</p>
+        <div id="modal-contact-body" class="hc-mono text-xs text-indigo-500 flex flex-wrap gap-2"></div>
+      </div>
+    </div>
+
+    <!-- Modal footer -->
+    <div class="px-6 py-4 border-t border-gray-100 flex gap-3">
+      <a id="modal-apply-btn" href="#" target="_blank" rel="noopener"
+         class="apply-btn flex-1 block text-center py-3 text-sm font-semibold">Apply ↗</a>
+      <button onclick="closeJobModal()" class="px-4 py-3 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50">Close</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -979,5 +1011,122 @@ function fetchTailoredPoints(jobId, btn) {
       console.error('Error fetching tailored points:', err);
     });
 }
+
+// ── Job Detail Modal ────────────────────────────────────────────────────────
+function openJobModal(card) {
+  const d = card.dataset;
+  const modal = document.getElementById('job-modal');
+
+  // Avatar
+  const avatar = document.getElementById('modal-avatar');
+  avatar.textContent = (d.company || '?')[0].toUpperCase();
+  avatar.style.background = d.avatarBg || '#6366f1';
+
+  document.getElementById('modal-title').textContent = d.title || '';
+  document.getElementById('modal-company').textContent = d.company || '';
+  document.getElementById('modal-portal').textContent = d.portal || '';
+
+  const dateEl = document.getElementById('modal-date');
+  const dateSep = document.getElementById('modal-date-sep');
+  if (d.date) {
+    dateEl.dataset.date = d.date;
+    dateEl.textContent = toRelativeDate(d.date) || d.date;
+    dateSep.classList.remove('hidden');
+  } else {
+    dateEl.textContent = '';
+    dateSep.classList.add('hidden');
+  }
+
+  // Remote tag
+  const remoteTag = document.getElementById('modal-remote-tag');
+  if (d.remote === 'remote') {
+    remoteTag.className = 'tag-remote';
+    remoteTag.textContent = 'Remote';
+  } else if (d.remote === 'hybrid') {
+    remoteTag.className = 'tag-hybrid';
+    remoteTag.textContent = 'Hybrid';
+  } else {
+    remoteTag.className = 'tag-pill';
+    remoteTag.textContent = 'Onsite';
+  }
+
+  const locEl = document.getElementById('modal-location');
+  locEl.textContent = d.location || '';
+
+  const expEl = document.getElementById('modal-exp');
+  if (d.expMin) {
+    expEl.textContent = d.expMin + '+ yrs';
+    expEl.classList.remove('hidden');
+  } else { expEl.classList.add('hidden'); }
+
+  const fundEl = document.getElementById('modal-funding');
+  if (d.funding) {
+    fundEl.textContent = d.funding;
+    fundEl.classList.remove('hidden');
+  } else { fundEl.classList.add('hidden'); }
+
+  const salEl = document.getElementById('modal-salary');
+  if (d.salary) {
+    salEl.textContent = (d.currency || '₹') + d.salary;
+    salEl.classList.remove('hidden');
+  } else { salEl.classList.add('hidden'); }
+
+  const cvEl = document.getElementById('modal-cv');
+  if (d.cv && parseInt(d.cv) > 0) {
+    cvEl.textContent = d.cv + '% CV match';
+    cvEl.classList.remove('hidden');
+  } else { cvEl.classList.add('hidden'); }
+
+  const scoreEl = document.getElementById('modal-score');
+  const sc = parseInt(d.score) || 0;
+  scoreEl.textContent = sc;
+  scoreEl.className = 'hc-mono text-xs font-bold tabular-nums px-2 py-0.5 rounded ml-auto ' +
+    (sc >= 80 ? 'score-high' : sc >= 65 ? 'score-mid' : 'score-low');
+
+  // Description
+  const descEl = document.getElementById('modal-description');
+  const noDescEl = document.getElementById('modal-no-desc');
+  if (d.description) {
+    descEl.textContent = d.description;
+    descEl.classList.remove('hidden');
+    noDescEl.classList.add('hidden');
+  } else {
+    descEl.classList.add('hidden');
+    noDescEl.classList.remove('hidden');
+  }
+
+  // Contact
+  const contactDiv = document.getElementById('modal-contact');
+  const contactBody = document.getElementById('modal-contact-body');
+  if (d.posterEmail || d.posterLinkedin) {
+    let html = '';
+    if (d.posterName) html += `<span class="text-gray-400">${escapeHtml(d.posterName)}</span>`;
+    if (d.posterEmail) html += `<a href="mailto:${escapeHtml(d.posterEmail)}" class="hover:underline">${escapeHtml(d.posterEmail)}</a>`;
+    if (d.posterLinkedin) html += `<a href="${escapeHtml(d.posterLinkedin)}" target="_blank" rel="noopener" class="hover:underline">LinkedIn</a>`;
+    contactBody.innerHTML = html;
+    contactDiv.classList.remove('hidden');
+  } else { contactDiv.classList.add('hidden'); }
+
+  // Apply button
+  const applyBtn = document.getElementById('modal-apply-btn');
+  if (d.applyUrl) {
+    applyBtn.href = d.applyUrl;
+    applyBtn.classList.remove('hidden');
+  } else {
+    applyBtn.classList.add('hidden');
+  }
+
+  modal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeJobModal() {
+  document.getElementById('job-modal').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeJobModal();
+});
 </script>
 {% endblock %}
