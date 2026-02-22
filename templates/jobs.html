@@ -77,8 +77,8 @@
       </div>
     </div>
     <select name="sort" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
-      <option value="score_desc" {% if filters.sort == 'score_desc' or not filters.sort %}selected{% endif %}>Best match</option>
-      <option value="date_desc" {% if filters.sort == 'date_desc' %}selected{% endif %}>Newest</option>
+      <option value="score_desc" {% if filters.sort == 'score_desc' %}selected{% endif %}>Best match</option>
+      <option value="date_desc" {% if filters.sort == 'date_desc' or not filters.sort %}selected{% endif %}>Newest</option>
       <option value="date_asc" {% if filters.sort == 'date_asc' %}selected{% endif %}>Oldest</option>
       <option value="company_asc" {% if filters.sort == 'company_asc' %}selected{% endif %}>Company A–Z</option>
     </select>

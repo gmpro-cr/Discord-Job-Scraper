@@ -518,7 +518,7 @@ def _build_jobs_query(filters):
     portal = filters.get("portal", "")
     remote = filters.get("remote", "")
     company_type = filters.get("company_type", "")
-    sort = filters.get("sort", "score_desc")
+    sort = filters.get("sort", "date_desc")
     applied = filters.get("applied", "")
     location = filters.get("location", "")
     recency = filters.get("recency", "")
@@ -640,7 +640,7 @@ def _build_jobs_query(filters):
         "date_asc": "date_found ASC",
         "company_asc": "company ASC",
     }
-    order = sort_map.get(sort, "relevance_score DESC")
+    order = sort_map.get(sort, "date_found DESC")
 
     return conditions, params, order
 
@@ -653,7 +653,7 @@ def jobs():
         "portal": request.args.get("portal", ""),
         "remote": request.args.get("remote", ""),
         "company_type": request.args.get("company_type", ""),
-        "sort": request.args.get("sort", "score_desc"),
+        "sort": request.args.get("sort", "date_desc"),
         "applied": request.args.get("applied", ""),
         "location": request.args.get("location", ""),
         "recency": request.args.get("recency", ""),
