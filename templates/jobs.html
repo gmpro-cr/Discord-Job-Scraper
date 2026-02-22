@@ -41,10 +41,6 @@
   .apply-btn:hover { background:#3f3f46; }
   .filter-submit { background:#18181b; color:#fff; transition:background .12s; }
   .filter-submit:hover { background:#3f3f46; }
-  /* Card select + more btn */
-  .card-select { background:#fff; border:1px solid #e4e4e7; color:#374151; border-radius:8px; font-size:12px; cursor:pointer; }
-  .card-more-btn { background:transparent; border:1px solid #e4e4e7; color:#9ca3af; border-radius:8px; padding:4px 8px; font-size:12px; cursor:pointer; }
-  .card-more-btn:hover { background:#f4f4f5; border-color:#d4d4d8; color:#374151; }
 </style>
 {% endblock %}
 
@@ -330,69 +326,15 @@
 
     </div>
 
-    <!-- Card footer: actions -->
-    <div class="px-4 pb-4 pt-3 border-t border-gray-100 flex items-center gap-1.5 flex-wrap">
+    <!-- Card footer: apply button -->
+    <div class="px-4 pb-4 pt-3 border-t border-gray-100">
       {% if job.apply_url %}
       <a href="{{ job.apply_url }}" target="_blank" rel="noopener"
          onclick="onApplyClick('{{ job.job_id }}')"
-         data-apply-url="{{ job.apply_url }}"
-         class="apply-btn px-3 py-1.5 text-xs font-semibold flex-shrink-0">Apply ↗</a>
+         class="apply-btn w-full block text-center py-2.5 text-sm font-semibold">Apply ↗</a>
+      {% else %}
+      <div class="w-full py-2.5 text-center text-sm text-gray-300 border border-gray-100 rounded-lg">No link available</div>
       {% endif %}
-      <select onchange="updateJobStatus('{{ job.job_id }}', this.value, this)"
-              class="card-select px-2 py-1.5 h-[30px] flex-shrink-0">
-        <option value="" disabled {% if s == 0 %}selected{% endif %}>Status…</option>
-        <option value="1" {% if s == 1 %}selected{% endif %}>Applied</option>
-        <option value="2" {% if s == 2 %}selected{% endif %}>Saved</option>
-        <option value="3" {% if s == 3 %}selected{% endif %}>Phone Screen</option>
-        <option value="4" {% if s == 4 %}selected{% endif %}>Interview</option>
-        <option value="5" {% if s == 5 %}selected{% endif %}>Offer</option>
-        <option value="6" {% if s == 6 %}selected{% endif %}>Rejected</option>
-      </select>
-      <button onclick="toggleCardMenu('{{ job.job_id }}')"
-              id="more-btn-{{ job.job_id }}"
-              class="card-more-btn" title="More actions">•••</button>
-    </div>
-
-    <!-- Secondary actions (expandable) -->
-    <div id="card-menu-{{ job.job_id }}" class="hidden px-4 pb-3 flex items-center gap-1.5 flex-wrap border-t border-gray-100 pt-2">
-      <button onclick="toggleGapAnalysis('{{ job.job_id }}', this)"
-              class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">Gap Analysis</button>
-      <button onclick="fetchTailoredPoints('{{ job.job_id }}', this)"
-              class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">Resume Tips</button>
-      <button onclick="toggleNotes('{{ job.job_id }}')"
-              id="notes-btn-{{ job.job_id }}"
-              class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-700">
-        Notes{% if job.user_notes %} <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block ml-0.5"></span>{% endif %}
-      </button>
-      <button onclick="hideJob('{{ job.job_id }}')"
-              class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg border border-gray-200 text-gray-400 hover:bg-red-50 hover:text-red-500 hover:border-red-200">Hide</button>
-    </div>
-
-    <!-- Expanded panels -->
-    <div id="gap-{{ job.job_id }}" class="hidden mx-4 mb-3 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-      <div class="flex items-center justify-between mb-2">
-        <p class="font-semibold text-slate-700">Gap Analysis</p>
-        <div id="gap-score-{{ job.job_id }}" class="font-bold text-slate-500"></div>
-      </div>
-      <div id="gap-content-{{ job.job_id }}" class="text-slate-500 italic">Loading...</div>
-    </div>
-
-    <div id="tailored-{{ job.job_id }}" class="hidden mx-4 mb-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
-      <p class="text-xs font-semibold text-amber-800 mb-1.5">Tailored Resume Points</p>
-      <ul id="tailored-list-{{ job.job_id }}" class="space-y-1 text-xs text-amber-900"></ul>
-    </div>
-
-    <div id="notes-{{ job.job_id }}" class="hidden mx-4 mb-3 p-3 bg-yellow-50 rounded-xl border border-yellow-200">
-      <p class="text-xs font-semibold text-yellow-800 mb-1.5">My Notes</p>
-      <textarea id="notes-text-{{ job.job_id }}"
-                class="w-full text-xs rounded-lg border border-yellow-200 focus:border-yellow-400 focus:ring-1 focus:ring-yellow-300 p-2 bg-white resize-none"
-                rows="3"
-                placeholder="Add interview notes, contacts, follow-up reminders...">{{ job.user_notes or '' }}</textarea>
-      <div class="flex justify-end mt-1.5">
-        <button onclick="saveNote('{{ job.job_id }}')"
-                id="notes-save-{{ job.job_id }}"
-                class="px-3 py-1 bg-amber-600 text-white text-xs font-semibold rounded-lg hover:bg-amber-700">Save</button>
-      </div>
     </div>
 
   </div>
