@@ -195,10 +195,10 @@
       <option value="12+" {% if filters.experience == '12+' %}selected{% endif %}>12+ yrs</option>
     </select>
     <select name="min_score" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
-      <option value="0" {% if filters.min_score == '0' %}selected{% endif %}>Any score</option>
+      <option value="0" {% if filters.min_score == '0' or not filters.min_score %}selected{% endif %}>Any score</option>
       <option value="30" {% if filters.min_score == '30' %}selected{% endif %}>Score ≥ 30</option>
       <option value="40" {% if filters.min_score == '40' %}selected{% endif %}>Score ≥ 40</option>
-      <option value="60" {% if filters.min_score == '60' or not filters.min_score %}selected{% endif %}>Score ≥ 60</option>
+      <option value="60" {% if filters.min_score == '60' %}selected{% endif %}>Score ≥ 60</option>
       <option value="50" {% if filters.min_score == '50' %}selected{% endif %}>Score ≥ 50</option>
       <option value="65" {% if filters.min_score == '65' %}selected{% endif %}>Score ≥ 65</option>
       <option value="75" {% if filters.min_score == '75' %}selected{% endif %}>Score ≥ 75</option>

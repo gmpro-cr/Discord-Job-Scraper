@@ -522,7 +522,7 @@ def _build_jobs_query(filters):
     applied = filters.get("applied", "")
     location = filters.get("location", "")
     recency = filters.get("recency", "")
-    min_score = filters.get("min_score", "60")
+    min_score = filters.get("min_score", "0")
     experience = filters.get("experience", "")
     salary_min = filters.get("salary_min", "")
     salary_max = filters.get("salary_max", "")
@@ -657,7 +657,7 @@ def jobs():
         "applied": request.args.get("applied", ""),
         "location": request.args.get("location", ""),
         "recency": request.args.get("recency", ""),
-        "min_score": request.args.get("min_score", "60"),
+        "min_score": request.args.get("min_score", "0"),
         "experience": request.args.get("experience", ""),
         "salary_min": request.args.get("salary_min", ""),
         "salary_max": request.args.get("salary_max", ""),
