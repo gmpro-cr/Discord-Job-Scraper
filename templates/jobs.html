@@ -2,26 +2,31 @@
 {% block title %}Jobs - Job Search Agent{% endblock %}
 
 {% block head %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  .jobs-page { font-family: 'DM Sans', sans-serif; }
-  .jobs-page h1, .jobs-page .syne { font-family: 'Syne', sans-serif; }
-  .job-card { transition: transform 0.18s ease, box-shadow 0.18s ease; }
-  .job-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,0.10); }
-  .persona-tab { font-family: 'DM Sans', sans-serif; transition: all 0.15s ease; }
-  .persona-tab.active { background: #111827; color: #fff; border-color: #111827; }
-  .persona-tab:not(.active) { background: #fff; color: #4b5563; border-color: #e5e7eb; }
-  .persona-tab:not(.active):hover { border-color: #f59e0b; color: #111827; }
-  .score-pill-high  { background:#111827; color:#fff; }
-  .score-pill-mid   { background:#fef3c7; color:#b45309; }
-  .score-pill-low   { background:#f3f4f6; color:#6b7280; }
-  .apply-btn { background:#f59e0b; color:#fff; transition: background 0.15s; }
-  .apply-btn:hover { background:#d97706; }
-  .filter-submit { background:#111827; color:#fff; transition: background 0.15s; }
+  /* HiringCafe-inspired: system fonts, monospace metadata, minimal list */
+  .jobs-page {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+  }
+  .hc-mono {
+    font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  }
+  /* Persona underline tabs */
+  .persona-tab { transition: color 0.12s, border-color 0.12s; border-bottom: 2px solid transparent; }
+  .persona-tab.active { color: #111827; border-bottom-color: #111827; }
+  .persona-tab:not(.active) { color: #9ca3af; }
+  .persona-tab:not(.active):hover { color: #4b5563; }
+  /* Row cards */
+  .job-card { transition: background-color 0.1s; }
+  .job-card:hover { background-color: #fafafa; }
+  /* Score badges */
+  .score-high { background:#111827; color:#fff; }
+  .score-mid  { background:#fef3c7; color:#92400e; }
+  .score-low  { background:#f3f4f6; color:#6b7280; }
+  /* Buttons */
+  .apply-btn { background:#111827; color:#fff; transition: background 0.12s; }
+  .apply-btn:hover { background:#374151; }
+  .filter-submit { background:#111827; color:#fff; transition: background 0.12s; }
   .filter-submit:hover { background:#374151; }
-  .desc-preview { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 </style>
 {% endblock %}
 
@@ -30,8 +35,8 @@
 <!-- Page Header -->
 <div class="mb-4 flex items-center justify-between">
   <div>
-    <h1 class="syne text-2xl font-extrabold text-gray-900 tracking-tight uppercase">Jobs</h1>
-    <p class="text-sm text-gray-400 mt-0.5 font-medium">{{ total }} results</p>
+    <h1 class="text-xl font-semibold text-gray-900 tracking-tight">Jobs</h1>
+    <p class="hc-mono text-xs text-gray-400 mt-0.5">{{ total }} results</p>
   </div>
   <div class="flex items-center gap-2">
     <button onclick="toggleSection('search-tools-panel')" class="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50">
@@ -193,146 +198,130 @@
 </form>
 
 <!-- Persona Tabs -->
-<div class="flex gap-2 mb-5 flex-wrap">
+<div class="flex gap-6 mb-4 border-b border-gray-200">
   <button data-persona="all" onclick="switchPersona('all', this)"
-          class="persona-tab active px-4 py-2 text-sm font-semibold rounded-full border-2 text-center flex items-center gap-1.5">
-    All
-    <span class="inline-flex items-center justify-center text-xs font-bold w-5 h-5 rounded-full bg-white/20" id="ptab-count-all">{{ total }}</span>
+          class="persona-tab active pb-2.5 text-sm font-medium -mb-px">
+    All <span class="hc-mono text-xs ml-1" id="ptab-count-all">{{ total }}</span>
   </button>
   <button data-persona="pm" onclick="switchPersona('pm', this)"
-          class="persona-tab px-4 py-2 text-sm font-semibold rounded-full border-2 text-center flex items-center gap-1.5">
-    Product Manager
-    <span class="inline-flex items-center justify-center text-xs font-bold w-5 h-5 rounded-full bg-gray-100" id="ptab-count-pm">…</span>
+          class="persona-tab pb-2.5 text-sm font-medium -mb-px">
+    Product Manager <span class="hc-mono text-xs ml-1" id="ptab-count-pm">…</span>
   </button>
   <button data-persona="analyst" onclick="switchPersona('analyst', this)"
-          class="persona-tab px-4 py-2 text-sm font-semibold rounded-full border-2 text-center flex items-center gap-1.5">
-    Analyst
-    <span class="inline-flex items-center justify-center text-xs font-bold w-5 h-5 rounded-full bg-gray-100" id="ptab-count-analyst">…</span>
+          class="persona-tab pb-2.5 text-sm font-medium -mb-px">
+    Analyst <span class="hc-mono text-xs ml-1" id="ptab-count-analyst">…</span>
   </button>
   <button data-persona="ai" onclick="switchPersona('ai', this)"
-          class="persona-tab px-4 py-2 text-sm font-semibold rounded-full border-2 text-center flex items-center gap-1.5">
-    AI / ML
-    <span class="inline-flex items-center justify-center text-xs font-bold w-5 h-5 rounded-full bg-gray-100" id="ptab-count-ai">…</span>
+          class="persona-tab pb-2.5 text-sm font-medium -mb-px">
+    AI / ML <span class="hc-mono text-xs ml-1" id="ptab-count-ai">…</span>
   </button>
 </div>
 
-<!-- Job Cards -->
+<!-- Job List -->
 {% if jobs %}
-<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" id="job-list">
+{% set avatar_colors = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#f97316'] %}
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden" id="job-list">
   {% for job in jobs %}
   {% set s = job.applied_status | int %}
   {% set cv = job.cv_score | default(0) | int %}
   {% set score = job.relevance_score | int %}
+  {% set avatar_bg = avatar_colors[loop.index0 % 8] %}
 
-  <div class="job-card bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col h-full"
+  <div class="job-card border-b border-gray-100 last:border-b-0"
        id="job-{{ job.job_id }}"
        data-role="{{ job.role | lower }}">
 
-    <!-- ── Company Bar ──────────────────────────────────────────────── -->
-    <div class="flex items-center justify-between px-4 py-3 bg-gray-900 rounded-t-xl gap-3">
-      <div class="flex items-center gap-2 min-w-0">
-        <span class="text-sm font-bold text-white truncate" style="font-family:'DM Sans',sans-serif">{{ job.company }}</span>
-        {% if job.company_funding_stage %}
-        <span class="flex-shrink-0 px-1.5 py-0.5 rounded text-xs bg-amber-400/20 text-amber-300 font-medium">{{ job.company_funding_stage }}</span>
-        {% endif %}
-      </div>
-      <span class="flex-shrink-0 px-2 py-0.5 rounded text-xs bg-white/10 text-white/60 font-medium">{{ job.portal }}</span>
-    </div>
+    <!-- ── Main row ─────────────────────────────────────────────────── -->
+    <div class="flex items-start gap-3 px-5 py-4">
 
-    <!-- ── Card Body ─────────────────────────────────────────────────── -->
-    <div class="p-4 flex flex-col flex-1">
-
-      <!-- Title + Score -->
-      <div class="flex items-start justify-between gap-3 mb-3">
-        <h3 class="text-sm font-bold text-gray-900 leading-snug flex-1 line-clamp-2" style="font-family:'DM Sans',sans-serif">{{ job.role }}</h3>
-        <span class="flex-shrink-0 px-2.5 py-1 rounded-lg text-sm font-extrabold tabular-nums syne
-          {% if score >= 80 %}score-pill-high
-          {% elif score >= 65 %}score-pill-mid
-          {% else %}score-pill-low{% endif %}">
-          {{ score }}
-        </span>
+      <!-- Company avatar -->
+      <div class="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center text-sm font-bold text-white mt-0.5"
+           style="background:{{ avatar_bg }}">
+        {{ (job.company or '?')[0] | upper }}
       </div>
 
-      <!-- Meta row -->
-      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400 mb-3 font-medium">
-        {% if job.location %}
-        <span class="flex items-center gap-1">
-          <svg class="w-3 h-3 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-          {{ job.location }}
-        </span>
-        {% endif %}
-        {% if job.remote_status == 'remote' %}
-        <span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold">Remote</span>
-        {% elif job.remote_status == 'hybrid' %}
-        <span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 font-semibold">Hybrid</span>
-        {% endif %}
-        {% if job.salary %}
-        <span class="text-amber-600 font-bold">{{ job.salary_currency }} {{ job.salary }}</span>
-        {% endif %}
-        {% if job.experience_min is not none %}
-        <span>{{ job.experience_min }}–{{ job.experience_max }}y exp</span>
-        {% endif %}
-        {% if job.date_posted %}
-        <span class="text-gray-400 relative-date" data-date="{{ job.date_posted }}">{{ job.date_posted }}</span>
-        {% endif %}
-      </div>
+      <!-- Centre: title + meta + description -->
+      <div class="flex-1 min-w-0">
 
-      <!-- Job Description (fixed height for symmetry) -->
-      <div class="min-h-[5rem] mb-4 pb-4 border-b border-gray-100 pl-3 border-l-2 border-l-amber-200">
-        {% if job.job_description %}
-        <p class="text-xs text-gray-500 leading-relaxed desc-preview">{{ job.job_description }}</p>
-        {% else %}
-        <p class="text-xs text-gray-300 italic">No description available.</p>
-        {% endif %}
-      </div>
-
-      <!-- CV Match + Contact (only shown when data exists) -->
-      {% if cv > 0 or job.poster_email or job.poster_linkedin %}
-      <div class="flex items-center gap-4 mb-4">
-        {% if cv > 0 %}
-        <div class="relative w-12 h-12 flex-shrink-0">
-          <svg width="48" height="48" viewBox="0 0 48 48" class="w-12 h-12">
-            <circle cx="24" cy="24" r="19" fill="none" stroke="#e5e7eb" stroke-width="4"/>
-            <circle cx="24" cy="24" r="19" fill="none"
-                    stroke="{% if cv >= 70 %}#16a34a{% elif cv >= 40 %}#d97706{% else %}#9ca3af{% endif %}"
-                    stroke-width="4"
-                    stroke-linecap="round"
-                    stroke-dasharray="{{ (cv / 100 * 119.38) | round(1) }} 119.38"
-                    transform="rotate(-90 24 24)"/>
-          </svg>
-          <div class="absolute inset-0 flex items-center justify-center">
-            <span class="text-[10px] font-bold leading-none {% if cv >= 70 %}text-green-700{% elif cv >= 40 %}text-amber-600{% else %}text-gray-500{% endif %}">{{ cv }}%</span>
-          </div>
+        <!-- Title row -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <h3 class="text-[15px] font-semibold text-gray-900 leading-tight">{{ job.role }}</h3>
+          {% if job.remote_status == 'remote' %}
+          <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-50 text-emerald-700 uppercase tracking-wide">Remote</span>
+          {% elif job.remote_status == 'hybrid' %}
+          <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-100 text-gray-500 uppercase tracking-wide">Hybrid</span>
+          {% endif %}
+          {% if job.company_funding_stage %}
+          <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-blue-50 text-blue-600 uppercase tracking-wide">{{ job.company_funding_stage }}</span>
+          {% endif %}
         </div>
+
+        <!-- Meta: Company · Location · exp · date · portal -->
+        <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1">
+          <span class="text-xs font-medium text-gray-700">{{ job.company }}</span>
+          {% if job.location %}
+          <span class="text-gray-300 text-xs">·</span>
+          <span class="text-xs text-gray-500">{{ job.location }}</span>
+          {% endif %}
+          {% if job.salary %}
+          <span class="text-gray-300 text-xs">·</span>
+          <span class="hc-mono text-xs font-semibold text-gray-700">{{ job.salary_currency or '₹' }}{{ job.salary }}</span>
+          {% endif %}
+          {% if job.experience_min is not none %}
+          <span class="text-gray-300 text-xs">·</span>
+          <span class="text-xs text-gray-500">{{ job.experience_min }}–{{ job.experience_max }}y</span>
+          {% endif %}
+          {% if job.date_posted %}
+          <span class="text-gray-300 text-xs">·</span>
+          <span class="hc-mono text-[11px] text-gray-400 relative-date" data-date="{{ job.date_posted }}">{{ job.date_posted }}</span>
+          {% endif %}
+          <span class="text-gray-300 text-xs">·</span>
+          <span class="hc-mono text-[11px] text-gray-400">{{ job.portal }}</span>
+        </div>
+
+        <!-- Description (2 lines) -->
+        {% if job.job_description %}
+        <p class="text-xs text-gray-400 mt-1.5 leading-relaxed line-clamp-2 max-w-2xl">{{ job.job_description }}</p>
         {% endif %}
+
+        <!-- Contact info if available -->
         {% if job.poster_email or job.poster_linkedin %}
-        <div class="text-xs flex flex-wrap gap-2 text-blue-600">
-          {% if job.poster_name %}<span class="text-gray-500">{{ job.poster_name }}</span>{% endif %}
+        <div class="hc-mono text-[11px] flex flex-wrap gap-2 text-blue-500 mt-1.5">
+          {% if job.poster_name %}<span class="text-gray-400">{{ job.poster_name }}</span>{% endif %}
           {% if job.poster_email %}<a href="mailto:{{ job.poster_email }}" class="hover:underline">{{ job.poster_email }}</a>{% endif %}
           {% if job.poster_linkedin %}<a href="{{ job.poster_linkedin }}" target="_blank" rel="noopener" class="hover:underline">LinkedIn</a>{% endif %}
         </div>
         {% endif %}
-      </div>
-      {% endif %}
 
-      <!-- Actions (pinned to bottom) -->
-      <div class="mt-auto pt-3 border-t border-gray-100">
-        <!-- Primary row -->
-        <div class="flex items-center gap-1.5 flex-wrap">
+      </div>
+
+      <!-- Right: score + CV + apply + status + ··· -->
+      <div class="flex-shrink-0 flex flex-col items-end gap-2 ml-2">
+
+        <!-- Score + CV match -->
+        <div class="flex items-center gap-2">
+          {% if cv > 0 %}
+          <span class="hc-mono text-[11px] text-gray-400">{{ cv }}% cv</span>
+          {% endif %}
+          <span class="hc-mono text-xs font-bold tabular-nums px-2 py-0.5 rounded
+            {% if score >= 80 %}score-high{% elif score >= 65 %}score-mid{% else %}score-low{% endif %}">
+            {{ score }}
+          </span>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex items-center gap-1.5">
           {% if job.apply_url %}
           <a href="{{ job.apply_url }}" target="_blank" rel="noopener"
              onclick="onApplyClick('{{ job.job_id }}')"
              data-apply-url="{{ job.apply_url }}"
-             class="apply-btn inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg">
-            Apply
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-            </svg>
+             class="apply-btn px-3 py-1 text-xs font-semibold rounded-lg whitespace-nowrap">
+            Apply ↗
           </a>
           {% endif %}
           <select onchange="updateJobStatus('{{ job.job_id }}', this.value, this)"
-                  class="text-xs rounded-lg border-gray-200 bg-white px-2 py-1.5 border focus:border-indigo-400 focus:ring-0 cursor-pointer">
-            <option value="" disabled {% if s == 0 %}selected{% endif %}>Change status…</option>
+                  class="text-xs rounded-lg border-gray-200 bg-white px-2 py-1 border focus:ring-0 cursor-pointer h-[26px]">
+            <option value="" disabled {% if s == 0 %}selected{% endif %}>Status…</option>
             <option value="1" {% if s == 1 %}selected{% endif %}>Applied</option>
             <option value="2" {% if s == 2 %}selected{% endif %}>Saved</option>
             <option value="3" {% if s == 3 %}selected{% endif %}>Phone Screen</option>
@@ -342,64 +331,63 @@
           </select>
           <button onclick="toggleCardMenu('{{ job.job_id }}')"
                   id="more-btn-{{ job.job_id }}"
-                  class="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600"
+                  class="px-2 py-1 text-xs rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-100 h-[26px]"
                   title="More actions">•••</button>
         </div>
-        <!-- Secondary row -->
-        <div id="card-menu-{{ job.job_id }}" class="hidden mt-2 flex items-center gap-1.5 flex-wrap">
-          <button onclick="toggleGapAnalysis('{{ job.job_id }}', this)"
-                  class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">Gap Analysis</button>
-          <button onclick="fetchTailoredPoints('{{ job.job_id }}', this)"
-                  class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">Resume Tips</button>
-          <button onclick="toggleNotes('{{ job.job_id }}')"
-                  id="notes-btn-{{ job.job_id }}"
-                  class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-700">
-            Notes{% if job.user_notes %} <span class="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>{% endif %}
-          </button>
-          <button onclick="hideJob('{{ job.job_id }}')"
-                  class="inline-flex items-center gap-1 px-2 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-400 hover:bg-red-50 hover:text-red-500 hover:border-red-200"
-                  title="Not interested">Hide</button>
-        </div>
-      </div>
 
-      <!-- Gap Analysis Panel -->
-      <div id="gap-{{ job.job_id }}" class="hidden mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-        <div class="flex items-center justify-between mb-2">
-          <p class="font-semibold text-slate-700">Gap Analysis</p>
-          <div id="gap-score-{{ job.job_id }}" class="font-bold text-slate-500"></div>
-        </div>
-        <div id="gap-content-{{ job.job_id }}" class="text-slate-500 italic">Loading...</div>
       </div>
-
-      <!-- Tailored Points Panel -->
-      <div id="tailored-{{ job.job_id }}" class="hidden mt-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
-        <p class="text-xs font-semibold text-amber-800 mb-1.5">Tailored Resume Points</p>
-        <ul id="tailored-list-{{ job.job_id }}" class="space-y-1 text-xs text-amber-900"></ul>
-      </div>
-
-      <!-- Notes Panel -->
-      <div id="notes-{{ job.job_id }}" class="hidden mt-3 p-3 bg-yellow-50 rounded-xl border border-yellow-200">
-        <p class="text-xs font-semibold text-yellow-800 mb-1.5">My Notes</p>
-        <textarea id="notes-text-{{ job.job_id }}"
-                  class="w-full text-xs rounded-lg border border-yellow-200 focus:border-yellow-400 focus:ring-1 focus:ring-yellow-300 p-2 bg-white resize-none"
-                  rows="3"
-                  placeholder="Add interview notes, contacts, follow-up reminders...">{{ job.user_notes or '' }}</textarea>
-        <div class="flex justify-end mt-1.5">
-          <button onclick="saveNote('{{ job.job_id }}')"
-                  id="notes-save-{{ job.job_id }}"
-                  class="px-3 py-1 bg-yellow-600 text-white text-xs font-semibold rounded-lg hover:bg-yellow-700">Save</button>
-        </div>
-      </div>
-
     </div>
+
+    <!-- ── Secondary actions (expandable) ───────────────────────────── -->
+    <div id="card-menu-{{ job.job_id }}" class="hidden px-17 pb-3 pl-[3.25rem] flex items-center gap-1.5 flex-wrap border-t border-gray-50 pt-2">
+      <button onclick="toggleGapAnalysis('{{ job.job_id }}', this)"
+              class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">Gap Analysis</button>
+      <button onclick="fetchTailoredPoints('{{ job.job_id }}', this)"
+              class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">Resume Tips</button>
+      <button onclick="toggleNotes('{{ job.job_id }}')"
+              id="notes-btn-{{ job.job_id }}"
+              class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-700">
+        Notes{% if job.user_notes %} <span class="w-1.5 h-1.5 rounded-full bg-yellow-400 inline-block ml-0.5"></span>{% endif %}
+      </button>
+      <button onclick="hideJob('{{ job.job_id }}')"
+              class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg border border-gray-200 text-gray-400 hover:bg-red-50 hover:text-red-500 hover:border-red-200">Hide</button>
+    </div>
+
+    <!-- ── Expanded panels ───────────────────────────────────────────── -->
+    <div id="gap-{{ job.job_id }}" class="hidden mx-5 mb-3 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+      <div class="flex items-center justify-between mb-2">
+        <p class="font-semibold text-slate-700">Gap Analysis</p>
+        <div id="gap-score-{{ job.job_id }}" class="font-bold text-slate-500"></div>
+      </div>
+      <div id="gap-content-{{ job.job_id }}" class="text-slate-500 italic">Loading...</div>
+    </div>
+
+    <div id="tailored-{{ job.job_id }}" class="hidden mx-5 mb-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
+      <p class="text-xs font-semibold text-amber-800 mb-1.5">Tailored Resume Points</p>
+      <ul id="tailored-list-{{ job.job_id }}" class="space-y-1 text-xs text-amber-900"></ul>
+    </div>
+
+    <div id="notes-{{ job.job_id }}" class="hidden mx-5 mb-3 p-3 bg-yellow-50 rounded-xl border border-yellow-200">
+      <p class="text-xs font-semibold text-yellow-800 mb-1.5">My Notes</p>
+      <textarea id="notes-text-{{ job.job_id }}"
+                class="w-full text-xs rounded-lg border border-yellow-200 focus:border-yellow-400 focus:ring-1 focus:ring-yellow-300 p-2 bg-white resize-none"
+                rows="3"
+                placeholder="Add interview notes, contacts, follow-up reminders...">{{ job.user_notes or '' }}</textarea>
+      <div class="flex justify-end mt-1.5">
+        <button onclick="saveNote('{{ job.job_id }}')"
+                id="notes-save-{{ job.job_id }}"
+                class="px-3 py-1 bg-yellow-600 text-white text-xs font-semibold rounded-lg hover:bg-yellow-700">Save</button>
+      </div>
+    </div>
+
   </div>
   {% endfor %}
 </div>
 
 {% else %}
 <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
-  <p class="text-gray-500 text-base">No jobs found.</p>
-  <p class="text-gray-400 text-sm mt-1">Try broadening your filters or run a live search.</p>
+  <p class="text-gray-500 text-sm">No jobs found.</p>
+  <p class="hc-mono text-xs text-gray-400 mt-1">Try broadening your filters or run a live search.</p>
 </div>
 {% endif %}
 </div>{# close .jobs-page #}
@@ -976,16 +964,8 @@ const PERSONA_PATTERNS = {
 };
 
 function switchPersona(key, btn) {
-  document.querySelectorAll('.persona-tab').forEach(t => {
-    t.classList.remove('active');
-    // reset count badge bg
-    const badge = t.querySelector('span[id^="ptab-count"]');
-    if (badge) badge.style.background = '';
-  });
+  document.querySelectorAll('.persona-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  // active count badge contrast
-  const activeBadge = btn.querySelector('span[id^="ptab-count"]');
-  if (activeBadge) activeBadge.style.background = 'rgba(255,255,255,0.2)';
 
   const pattern = PERSONA_PATTERNS[key];
   let visible = 0;
